@@ -1,4 +1,4 @@
-require('dotenv').config();
+const { config } = require('../config');
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
@@ -7,7 +7,7 @@ module.exports = async ({getNamedAccounts, deployments}) => {
     const {deployer} = await getNamedAccounts();
     await deploy('TimelockController', {
       from: deployer,
-      args: [process.env.MIN_TIMELOCK_DELAY, [], [ZERO_ADDRESS]],
+      args: [config.MIN_TIMELOCK_DELAY, [], [ZERO_ADDRESS]],
       log: true,
     });
   };

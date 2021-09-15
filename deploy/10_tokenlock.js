@@ -1,4 +1,4 @@
-require('dotenv').config();
+const config = require('../config');
 
 module.exports = async ({getNamedAccounts, deployments}) => {
   const {deploy} = deployments;
@@ -8,9 +8,9 @@ module.exports = async ({getNamedAccounts, deployments}) => {
     from: deployer,
     args: [
         ensToken.address,
-        Math.floor(new Date(process.env.UNLOCK_BEGIN).getTime() / 1000),
-        Math.floor(new Date(process.env.UNLOCK_CLIFF).getTime() / 1000),
-        Math.floor(new Date(process.env.UNLOCK_END).getTime() / 1000),
+        Math.floor(new Date(config.UNLOCK_BEGIN).getTime() / 1000),
+        Math.floor(new Date(config.UNLOCK_CLIFF).getTime() / 1000),
+        Math.floor(new Date(config.UNLOCK_END).getTime() / 1000),
     ],
     log: true,
   });
