@@ -26,7 +26,6 @@ contract TokenLock {
      * @param _unlockEnd The time at which the last token will unlock.
      */
     constructor(ERC20 _token, uint256 _unlockBegin, uint256 _unlockCliff, uint256 _unlockEnd) {
-        require(_unlockBegin >= block.timestamp, "ERC20Locked: Unlock must begin in the future");
         require(_unlockCliff >= _unlockBegin, "ERC20Locked: Unlock cliff must not be before unlock begin");
         require(_unlockEnd >= _unlockCliff, "ERC20Locked: Unlock end must not be before unlock cliff");
         token = _token;
