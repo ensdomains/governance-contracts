@@ -1,4 +1,4 @@
-const { config } = require('../config');
+const config = require('../config');
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 

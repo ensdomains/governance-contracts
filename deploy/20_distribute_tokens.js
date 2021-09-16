@@ -16,7 +16,8 @@ module.exports = async ({getNamedAccounts, deployments}) => {
   await tokenLock.lock(timelockController.address, timelockedSupply);
 
   // Transfer free tokens to the timelock controller
-  await ensToken.transfer(timelockController.address, ethers.BigNumber.from(10).pow(18).mul(config.FREE_SUPPLY));
+  const balance = await ensToken.balanceOf(deployer);
+  await ensToken.transfer(timelockController.address, balance);
 };
 module.exports.tags = ['distribute'];
 module.exports.dependencies = ['ENSToken', 'TimelockController', 'TokenLock'];
