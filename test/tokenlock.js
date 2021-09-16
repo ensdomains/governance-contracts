@@ -1,4 +1,4 @@
-require('dotenv').config();
+const config = require('../config');
 
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
@@ -30,9 +30,9 @@ describe("TokenLock", () => {
         const signers = await ethers.getSigners();
         account2 = signers[1];
         lockAmount = ethers.BigNumber.from(10).pow(18).mul(1000000);
-        unlockBegin = new Date(process.env.UNLOCK_BEGIN).getTime() / 1000;
-        unlockCliff = new Date(process.env.UNLOCK_CLIFF).getTime() / 1000;
-        unlockEnd = new Date(process.env.UNLOCK_END).getTime() / 1000;
+        unlockBegin = new Date(config.UNLOCK_BEGIN).getTime() / 1000;
+        unlockCliff = new Date(config.UNLOCK_CLIFF).getTime() / 1000;
+        unlockEnd = new Date(config.UNLOCK_END).getTime() / 1000;
     });
 
     beforeEach(async () => {

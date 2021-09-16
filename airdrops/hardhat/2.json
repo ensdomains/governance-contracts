@@ -1,0 +1,14 @@
+{
+    "proof": [
+        "0xb0210ecf131b1d76f91d09e743455a7de145d9ab80f3377de5c3c81ad14eade5",
+        "0x1e7f371f80fa4e3675fb2e059ff0a36a43694814a96cd4b526640e910dc19148"
+    ],
+    "entries": {
+        "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f": {
+            "balance": "1000000000000000000000000"
+        },
+        "0x2546BcD3c84621e976D8185a91A922aE77ECEc30": {
+            "balance": "1000000000000000000000000"
+        }
+    }
+}

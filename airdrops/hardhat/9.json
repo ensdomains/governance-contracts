@@ -1,0 +1,19 @@
+{
+    "proof": [
+        "0x00491419c19be0d3d290db7e4aaf0cbdfb240295f8a2904f3573277e371d70c6",
+        "0x8cbcdc135a85e7fd928214f58d053a15360b3f116e4cbe6b97a45145086d5498",
+        "0xd0b3dcee2b373010fc4e247daa2dea5d85f0bb1f61660dbd38602f878dc45e47",
+        "0xb350519437cdf1407b1da9fa6982efa3bc925f158e60a3f84a269da39cfe44f8"
+    ],
+    "entries": {
+        "0x90F79bf6EB2c4f870365E785982E1f101E93b906": {
+            "balance": "1000000000000000000000000"
+        },
+        "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc": {
+            "balance": "1000000000000000000000000"
+        },
+        "0x976EA74026E726554dB657fA54763abd0C3a0aa9": {
+            "balance": "1000000000000000000000000"
+        }
+    }
+}

@@ -1,10 +1,11 @@
-require('dotenv').config();
+const config = require('../config');
 
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { deployments, getNamedAccounts } = require("hardhat");
 const { MerkleTree } = require('merkletreejs');
 const keccak256 = require('keccak256');
+const { ShardedMerkleTree } = require('../src/merkle');
 
 function setNextBlockTimestamp(ts) {
     return ethers.provider.send('evm_setNextBlockTimestamp', [ts]);
@@ -18,26 +19,22 @@ function hashLeaf(data) {
     return ethers.utils.solidityKeccak256(['address', 'uint256'], data);
 }
 
-function getProof(tree, leaves, address) {
-    const leaf = hashLeaf([address, leaves[address]]);
+function getIndex(tree, leaves, address) {
+    leaf = hashLeaf([address, leaves[address]]);
     const proof = tree.getProof(leaf);
-    return proof.map((element) => '0x' + element.data.toString('hex'));
+    return proof.reduce((prev, curr) => prev * 2 + (curr == 'left' ? 0 : 1), 0);
 }
 
 describe("ENS token", () => {
     let token;
     let deployer;
-    let airdrops;
     let tree;
 
     before(async () => {
         ({deployer} = await getNamedAccounts());
         const signers = await ethers.getSigners();
-        airdrops = Object.fromEntries(signers.map((signer) => 
-            [signer.address, ethers.BigNumber.from(10).pow(18).mul(1000000)]
-        ));
-        tree = new MerkleTree(Object.entries(airdrops).map((leaf) => hashLeaf(leaf)), keccak256, {sortPairs: true});
-        process.env.AIRDROP_MERKLE_TREE_ROOT = tree.getHexRoot();
+        tree = ShardedMerkleTree.fromFiles('airdrops/hardhat');
+        config.AIRDROP_MERKLE_ROOT = tree.root;
     });
 
     beforeEach(async () => {
@@ -84,57 +81,63 @@ describe("ENS token", () => {
         it("should allow airdrop claims", async () => {
             const account = (await ethers.getSigners())[1];
             const balanceBefore = await token.balanceOf(account.address);
+            const [entry, proof] = tree.getProof(account.address);
             await token
                 .connect(account)
                 .claimTokens(
-                    airdrops[account.address],
+                    entry.balance,
                     deployer,
-                    getProof(tree, airdrops, account.address)
+                    proof
                 );
-            expect(await token.balanceOf(account.address)).to.equal(balanceBefore.add(airdrops[account.address]))
+            expect(await token.balanceOf(account.address)).to.equal(balanceBefore.add(entry.balance))
+            // const index = getIndex(tree, airdrops, account.address);
+            // console.log(index);
+            // expect(await token.isClaimed(index)).to.equal(true);
         });
 
         it("should not allow multiple claims by the same user", async () => {
             const account = (await ethers.getSigners())[1];
             const token2 = token.connect(account);
-            const balanceBefore = await token.balanceOf(account.address);
+            const [entry, proof] = tree.getProof(account.address);
             await token2
                 .claimTokens(
-                    airdrops[account.address],
+                    entry.balance,
                     deployer,
-                    getProof(tree, airdrops, account.address)
+                    proof
                 );
-            await expect(token2.claimTokens(airdrops[account.address], deployer, getProof(tree, airdrops, account.address)))
+            await expect(token2.claimTokens(entry.balance, deployer, proof))
                 .to.be.revertedWith("Tokens already claimed");
         });
 
         it("should not allow claims with incorrect amounts", async () => {
+            const [entry, proof] = tree.getProof(deployer);
             await expect(token
                 .claimTokens(
-                    airdrops[deployer].add(1),
+                    ethers.BigNumber.from(entry.balance).add(1),
                     deployer,
-                    getProof(tree, airdrops, deployer)
+                    proof
                 )
             ).to.be.revertedWith("Valid proof required");
         });
 
         it("should not allow claims for a different addresses", async () => {
             const account = (await ethers.getSigners())[1];
+            const [entry, proof] = tree.getProof(account.address);
             await expect(token
                 .claimTokens(
-                    airdrops[account.address].add(1),
+                    entry.balance,
                     deployer,
-                    getProof(tree, airdrops, account.address)
+                    proof
                 )
             ).to.be.revertedWith("Valid proof required");
         });
 
         it("should not allow claims with invalid proofs", async () => {
-            const proof = getProof(tree, airdrops, deployer);
+            const [entry, proof] = tree.getProof(deployer);
             proof[0] = proof[1];
             await expect(token
                 .claimTokens(
-                    airdrops[deployer],
+                    entry.balance,
                     deployer,
                     proof,
                 )
