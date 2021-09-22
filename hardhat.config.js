@@ -14,14 +14,15 @@ task("maketree", "Generates a merkle airdrop tree").setAction(async () => {
   let shardNybbles = 1;
   if(hre.network.tags.test) {
     const signers = await ethers.getSigners();
-    airdrops = signers.map((signer) => [
+    airdrops = signers.map((signer, index) => [
       signer.address,
       {
         past_tokens: '500000000000000000000000',
         future_tokens: '500000000000000000000000',
         longest_owned_name: '0x04f740db81dc36c853ab4205bddd785f46e79ccedca351fc6dfcbd8cc9a33dd6', // keccak256('test')
         last_expiring_name: '0x04f740db81dc36c853ab4205bddd785f46e79ccedca351fc6dfcbd8cc9a33dd6',
-        balance: '1000000000000000000000000'
+        balance: '1000000000000000000000000',
+        has_reverse_record: index % 2 == 0,
       }
     ]);
   } else {

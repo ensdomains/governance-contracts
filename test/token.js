@@ -89,10 +89,8 @@ describe("ENS token", () => {
                     deployer,
                     proof
                 );
-            expect(await token.balanceOf(account.address)).to.equal(balanceBefore.add(entry.balance))
-            // const index = getIndex(tree, airdrops, account.address);
-            // console.log(index);
-            // expect(await token.isClaimed(index)).to.equal(true);
+            expect(await token.balanceOf(account.address)).to.equal(balanceBefore.add(entry.balance));
+            expect(await token.claimed(account.address)).to.equal(entry.balance);
         });
 
         it("should not allow multiple claims by the same user", async () => {
