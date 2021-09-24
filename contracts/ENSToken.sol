@@ -22,6 +22,7 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     bytes32 public immutable merkleRoot;
     
     uint256 public nextMint; // Timestamp
+    uint256 public claimPeriodEnds; // Timestamp
     mapping(address=>uint256) public claimed;
 
     event Claim(address indexed claimant, uint256 amount);
@@ -35,7 +36,8 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     constructor(
         uint256 freeSupply,
         uint256 airdropSupply,
-        bytes32 _merkleRoot
+        bytes32 _merkleRoot,
+        uint256 _claimPeriodEnds
     )
         ERC20("Ethereum Name Service", "ENS")
         ERC20Permit("Ethereum Name Service")
@@ -43,6 +45,7 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
         _mint(msg.sender, freeSupply);
         _mint(address(this), airdropSupply);
         merkleRoot = _merkleRoot;
+        claimPeriodEnds = _claimPeriodEnds;
         nextMint = block.timestamp + minimumMintInterval;
     }
 
@@ -65,14 +68,23 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     }
 
     /**
+     * @dev Allows the owner to sweep unclaimed tokens after the claim period ends.
+     * @param dest The address to sweep the tokens to.
+     */
+    function sweep(address dest) external onlyOwner {
+        require(block.timestamp > claimPeriodEnds, "ENS: Claim period not yet ended");
+        _transfer(address(this), dest, balanceOf(address(this)));
+    }
+
+    /**
      * @dev Mints new tokens. Can only be executed every `minimumMintInterval`, by the owner, and cannot
      *      exceed `mintCap / 10000` fraction of the current total supply.
      * @param dest The address to mint the new tokens to.
      * @param amount The quantity of tokens to mint.
      */
     function mint(address dest, uint256 amount) external onlyOwner {
-        require(amount <= (totalSupply() * mintCap) / 10000, "ENSToken: Mint exceeds maximum amount");
-        require(block.timestamp >= nextMint, "ENSToken: Cannot mint yet");
+        require(amount <= (totalSupply() * mintCap) / 10000, "ENS: Mint exceeds maximum amount");
+        require(block.timestamp >= nextMint, "ENS: Cannot mint yet");
 
         nextMint = block.timestamp + minimumMintInterval;
         _mint(dest, amount);
