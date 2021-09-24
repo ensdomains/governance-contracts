@@ -4,5 +4,6 @@ module.exports = {
     UNLOCK_BEGIN: "2021-11-04",
     UNLOCK_CLIFF: "2022-05-04",
     UNLOCK_END: "2025-11-04",
+    CLAIM_PERIOD_ENDS: "2022-05-04",
     MIN_TIMELOCK_DELAY: "86400",
 };
