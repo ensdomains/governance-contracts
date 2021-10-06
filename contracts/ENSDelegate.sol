@@ -35,9 +35,6 @@ contract ENSDelegate{
         token = _token;
     }
 
-    /**
-     * @dev get delegate detail.
-     */
     function getDelegate(bytes32 node) internal view returns(Delegate memory) {
         Resolver resolver = Resolver(ens.resolver(node));
         address addr = resolver.addr(node);
@@ -51,6 +48,10 @@ contract ENSDelegate{
         );
     }
 
+    /**
+     * @dev get delegate detail.
+     * @param nodes The list of ENS nodehash
+     */
     function getDelegates(bytes32[] calldata nodes) external view returns(Delegate[] memory ret) {
         ret = new Delegate[](nodes.length);
         for(uint256 i = 0; i < nodes.length; i++) {
