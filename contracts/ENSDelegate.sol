@@ -1,15 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.2;
 import "./ENSToken.sol";
-
-interface ENS {
-    function resolver(bytes32 node) external view returns(address);
-}
-
-interface Resolver{
-    function addr(bytes32 node) external view returns (address);
-    function text(bytes32 node, string calldata key) external view returns (string memory);
-}
+import '@ensdomains/ens-contracts/contracts/registry/ENS.sol';
+import '@ensdomains/ens-contracts/contracts/resolvers/PublicResolver.sol';
 
 /**
  * @dev A utility contract that returns delegate info
@@ -36,7 +29,7 @@ contract ENSDelegate{
     }
 
     function getDelegate(bytes32 node) internal view returns(Delegate memory) {
-        Resolver resolver = Resolver(ens.resolver(node));
+        PublicResolver resolver = PublicResolver(ens.resolver(node));
         address addr = resolver.addr(node);
         return Delegate(
             addr,
@@ -55,8 +48,7 @@ contract ENSDelegate{
     function getDelegates(bytes32[] calldata nodes) external view returns(Delegate[] memory ret) {
         ret = new Delegate[](nodes.length);
         for(uint256 i = 0; i < nodes.length; i++) {
-            Delegate memory d = getDelegate(nodes[i]);
-            ret[i] = d;
+            ret[i] = getDelegate(nodes[i]);
         }
         return ret;
     }
