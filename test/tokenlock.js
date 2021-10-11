@@ -16,6 +16,7 @@ function increaseTime(secs) {
 }
 
 describe("TokenLock", () => {
+    let snapshot;
     let token;
     let tokenLock;
     let deployer;
@@ -33,14 +34,19 @@ describe("TokenLock", () => {
         unlockBegin = new Date(config.UNLOCK_BEGIN).getTime() / 1000;
         unlockCliff = new Date(config.UNLOCK_CLIFF).getTime() / 1000;
         unlockEnd = new Date(config.UNLOCK_END).getTime() / 1000;
-    });
-
-    beforeEach(async () => {
         await deployments.fixture(['ENSToken', 'TokenLock']);
         token = await ethers.getContract("ENSToken");
         tokenLock = await ethers.getContract("TokenLock");
         await token.approve(tokenLock.address, lockAmount);
         await tokenLock.lock(account2.address, lockAmount);
+    });
+
+    beforeEach(async () => {
+        snapshot = await ethers.provider.send('evm_snapshot', []);
+    })
+
+    afterEach(async () => {
+        await ethers.provider.send('evm_revert', [snapshot]);
     });
 
     it("should allow a token owner to lock tokens", async () => {

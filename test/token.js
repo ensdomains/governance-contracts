@@ -29,17 +29,23 @@ describe("ENS token", () => {
     let token;
     let deployer;
     let tree;
+    let snapshot;
 
     before(async () => {
         ({deployer} = await getNamedAccounts());
         const signers = await ethers.getSigners();
         tree = ShardedMerkleTree.fromFiles('airdrops/hardhat');
         config.AIRDROP_MERKLE_ROOT = tree.root;
+        await deployments.fixture(['ENSToken']);
+        token = await ethers.getContract("ENSToken");
     });
 
     beforeEach(async () => {
-        await deployments.fixture(['ENSToken']);
-        token = await ethers.getContract("ENSToken");
+        snapshot = await ethers.provider.send('evm_snapshot', []);
+    })
+
+    afterEach(async () => {
+        await ethers.provider.send('evm_revert', [snapshot]);
     });
 
     describe("minting", () => {
@@ -140,6 +146,18 @@ describe("ENS token", () => {
                     proof,
                 )
             ).to.be.revertedWith("Valid proof required");
+        });
+
+        it("should not allow sweeping tokens until the claim period ends", async () => {
+            await expect(token.sweep(deployer)).to.be.revertedWith("ENS: Claim period not yet ended'");
+        });
+
+        it("should allow sweeping tokens after the claim period ends", async () => {
+            await setNextBlockTimestamp((await token.claimPeriodEnds()).toNumber() + 1);
+            const balanceBefore = await token.balanceOf(deployer);
+            const sweepBalance = await token.balanceOf(token.address);
+            await token.sweep(deployer);
+            expect(await token.balanceOf(deployer)).to.equal(balanceBefore.add(sweepBalance));
         });
     });
 });
