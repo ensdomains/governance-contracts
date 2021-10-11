@@ -4,15 +4,17 @@
   "description": "ENS Governance Contracts",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "hardhat test"
   },
   "author": "ENS Team (@ensdomains)",
   "license": "MIT",
   "dependencies": {
+    "@ensdomains/ens-contracts": "^0.0.7",
     "@openzeppelin/contracts": "^4.3.1",
     "keccak256": "^1.0.3"
   },
   "devDependencies": {
+    "@ensdomains/eth-ens-namehash": "^2.0.14",
     "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.10",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "chai": "^4.3.4",
