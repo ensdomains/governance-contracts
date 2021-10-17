@@ -19,10 +19,24 @@ function hashLeaf(data) {
     return ethers.utils.solidityKeccak256(['address', 'uint256'], data);
 }
 
-function getIndex(tree, leaves, address) {
-    leaf = hashLeaf([address, leaves[address]]);
-    const proof = tree.getProof(leaf);
-    return proof.reduce((prev, curr) => prev * 2 + (curr == 'left' ? 0 : 1), 0);
+function getIndex(address, balance, proof) {
+    let index = 0;
+    let computedHash = hashLeaf([address, balance]);
+
+    for(let i = 0; i < proof.length; i++) {
+        index *= 2;
+        const proofElement = proof[i];
+
+        if (computedHash <= proofElement) {
+            // Hash(current computed hash + current element of the proof)
+            computedHash = ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [computedHash, proofElement]);
+        } else {
+            // Hash(current element of the proof + current computed hash)
+            computedHash = ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [proofElement, computedHash]);
+            index += 1;
+        }
+    }
+    return index;
 }
 
 describe("ENS token", () => {
@@ -95,8 +109,9 @@ describe("ENS token", () => {
                     deployer,
                     proof
                 );
-            expect(await token.balanceOf(account.address)).to.equal(balanceBefore.add(entry.balance));
-            expect(await token.claimed(account.address)).to.equal(entry.balance);
+            expect(await token.balanceOf(account.address)).to.equal(balanceBefore.add(entry.balance))
+            const index = getIndex(account.address, entry.balance, proof);
+            expect(await token.isClaimed(index)).to.equal(true);
         });
 
         it("should not allow multiple claims by the same user", async () => {

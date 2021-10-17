@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.2;
 
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "./MerkleProof.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
+import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 
 /**
  * @dev An ERC20 token for ENS.
@@ -16,6 +17,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
  *       - Support for the owner (the DAO) to mint new tokens, at up to 2% PA.
  */
 contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
+    using BitMaps for BitMaps.BitMap;
+
     uint256 public constant minimumMintInterval = 365 days;
     uint256 public constant mintCap = 200; // 2%
 
@@ -23,7 +26,7 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     
     uint256 public nextMint; // Timestamp
     uint256 public claimPeriodEnds; // Timestamp
-    mapping(address=>uint256) public claimed;
+    BitMaps.BitMap private claimed;
 
     event Claim(address indexed claimant, uint256 amount);
 
@@ -57,10 +60,11 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
      */
     function claimTokens(uint256 amount, address delegate, bytes32[] calldata merkleProof) external {
         bytes32 leaf = keccak256(abi.encodePacked(msg.sender, amount));
-        require(MerkleProof.verify(merkleProof, merkleRoot, leaf), "ENS: Valid proof required.");
-        require(claimed[msg.sender] == 0, "ENS: Tokens already claimed.");
+        (bool valid, uint256 index) = MerkleProof.verify(merkleProof, merkleRoot, leaf);
+        require(valid, "ENS: Valid proof required.");
+        require(!isClaimed(index), "ENS: Tokens already claimed.");
         
-        claimed[msg.sender] = amount;
+        claimed.set(index);
         emit Claim(msg.sender, amount);
 
         _delegate(msg.sender, delegate);
@@ -74,6 +78,14 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     function sweep(address dest) external onlyOwner {
         require(block.timestamp > claimPeriodEnds, "ENS: Claim period not yet ended");
         _transfer(address(this), dest, balanceOf(address(this)));
+    }
+
+    /**
+     * @dev Returns true if the claim at the given index in the merkle tree has already been made.
+     * @param index The index into the merkle tree.
+     */
+    function isClaimed(uint256 index) public view returns (bool) {
+        return claimed.get(index);
     }
 
     /**
