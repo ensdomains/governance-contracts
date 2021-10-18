@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.2;
 
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "./MerkleProof.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
+import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 
 /**
  * @dev An ERC20 token for ENS.
@@ -16,13 +17,16 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
  *       - Support for the owner (the DAO) to mint new tokens, at up to 2% PA.
  */
 contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
+    using BitMaps for BitMaps.BitMap;
+
     uint256 public constant minimumMintInterval = 365 days;
     uint256 public constant mintCap = 200; // 2%
 
     bytes32 public immutable merkleRoot;
     
     uint256 public nextMint; // Timestamp
-    mapping(address=>uint256) public claimed;
+    uint256 public claimPeriodEnds; // Timestamp
+    BitMaps.BitMap private claimed;
 
     event Claim(address indexed claimant, uint256 amount);
 
@@ -35,7 +39,8 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     constructor(
         uint256 freeSupply,
         uint256 airdropSupply,
-        bytes32 _merkleRoot
+        bytes32 _merkleRoot,
+        uint256 _claimPeriodEnds
     )
         ERC20("Ethereum Name Service", "ENS")
         ERC20Permit("Ethereum Name Service")
@@ -43,6 +48,7 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
         _mint(msg.sender, freeSupply);
         _mint(address(this), airdropSupply);
         merkleRoot = _merkleRoot;
+        claimPeriodEnds = _claimPeriodEnds;
         nextMint = block.timestamp + minimumMintInterval;
     }
 
@@ -54,14 +60,32 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
      */
     function claimTokens(uint256 amount, address delegate, bytes32[] calldata merkleProof) external {
         bytes32 leaf = keccak256(abi.encodePacked(msg.sender, amount));
-        require(MerkleProof.verify(merkleProof, merkleRoot, leaf), "ENS: Valid proof required.");
-        require(claimed[msg.sender] == 0, "ENS: Tokens already claimed.");
+        (bool valid, uint256 index) = MerkleProof.verify(merkleProof, merkleRoot, leaf);
+        require(valid, "ENS: Valid proof required.");
+        require(!isClaimed(index), "ENS: Tokens already claimed.");
         
-        claimed[msg.sender] = amount;
+        claimed.set(index);
         emit Claim(msg.sender, amount);
 
         _delegate(msg.sender, delegate);
         _transfer(address(this), msg.sender, amount);
+    }
+
+    /**
+     * @dev Allows the owner to sweep unclaimed tokens after the claim period ends.
+     * @param dest The address to sweep the tokens to.
+     */
+    function sweep(address dest) external onlyOwner {
+        require(block.timestamp > claimPeriodEnds, "ENS: Claim period not yet ended");
+        _transfer(address(this), dest, balanceOf(address(this)));
+    }
+
+    /**
+     * @dev Returns true if the claim at the given index in the merkle tree has already been made.
+     * @param index The index into the merkle tree.
+     */
+    function isClaimed(uint256 index) public view returns (bool) {
+        return claimed.get(index);
     }
 
     /**
@@ -71,8 +95,8 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
      * @param amount The quantity of tokens to mint.
      */
     function mint(address dest, uint256 amount) external onlyOwner {
-        require(amount <= (totalSupply() * mintCap) / 10000, "ENSToken: Mint exceeds maximum amount");
-        require(block.timestamp >= nextMint, "ENSToken: Cannot mint yet");
+        require(amount <= (totalSupply() * mintCap) / 10000, "ENS: Mint exceeds maximum amount");
+        require(block.timestamp >= nextMint, "ENS: Cannot mint yet");
 
         nextMint = block.timestamp + minimumMintInterval;
         _mint(dest, amount);

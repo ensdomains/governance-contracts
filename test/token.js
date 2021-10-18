@@ -19,27 +19,47 @@ function hashLeaf(data) {
     return ethers.utils.solidityKeccak256(['address', 'uint256'], data);
 }
 
-function getIndex(tree, leaves, address) {
-    leaf = hashLeaf([address, leaves[address]]);
-    const proof = tree.getProof(leaf);
-    return proof.reduce((prev, curr) => prev * 2 + (curr == 'left' ? 0 : 1), 0);
+function getIndex(address, balance, proof) {
+    let index = 0;
+    let computedHash = hashLeaf([address, balance]);
+
+    for(let i = 0; i < proof.length; i++) {
+        index *= 2;
+        const proofElement = proof[i];
+
+        if (computedHash <= proofElement) {
+            // Hash(current computed hash + current element of the proof)
+            computedHash = ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [computedHash, proofElement]);
+        } else {
+            // Hash(current element of the proof + current computed hash)
+            computedHash = ethers.utils.solidityKeccak256(['bytes32', 'bytes32'], [proofElement, computedHash]);
+            index += 1;
+        }
+    }
+    return index;
 }
 
 describe("ENS token", () => {
     let token;
     let deployer;
     let tree;
+    let snapshot;
 
     before(async () => {
         ({deployer} = await getNamedAccounts());
         const signers = await ethers.getSigners();
         tree = ShardedMerkleTree.fromFiles('airdrops/hardhat');
         config.AIRDROP_MERKLE_ROOT = tree.root;
+        await deployments.fixture(['ENSToken']);
+        token = await ethers.getContract("ENSToken");
     });
 
     beforeEach(async () => {
-        await deployments.fixture(['ENSToken']);
-        token = await ethers.getContract("ENSToken");
+        snapshot = await ethers.provider.send('evm_snapshot', []);
+    })
+
+    afterEach(async () => {
+        await ethers.provider.send('evm_revert', [snapshot]);
     });
 
     describe("minting", () => {
@@ -89,8 +109,9 @@ describe("ENS token", () => {
                     deployer,
                     proof
                 );
-            expect(await token.balanceOf(account.address)).to.equal(balanceBefore.add(entry.balance));
-            expect(await token.claimed(account.address)).to.equal(entry.balance);
+            expect(await token.balanceOf(account.address)).to.equal(balanceBefore.add(entry.balance))
+            const index = getIndex(account.address, entry.balance, proof);
+            expect(await token.isClaimed(index)).to.equal(true);
         });
 
         it("should not allow multiple claims by the same user", async () => {
@@ -140,6 +161,18 @@ describe("ENS token", () => {
                     proof,
                 )
             ).to.be.revertedWith("Valid proof required");
+        });
+
+        it("should not allow sweeping tokens until the claim period ends", async () => {
+            await expect(token.sweep(deployer)).to.be.revertedWith("ENS: Claim period not yet ended'");
+        });
+
+        it("should allow sweeping tokens after the claim period ends", async () => {
+            await setNextBlockTimestamp((await token.claimPeriodEnds()).toNumber() + 1);
+            const balanceBefore = await token.balanceOf(deployer);
+            const sweepBalance = await token.balanceOf(token.address);
+            await token.sweep(deployer);
+            expect(await token.balanceOf(deployer)).to.equal(balanceBefore.add(sweepBalance));
         });
     });
 });
