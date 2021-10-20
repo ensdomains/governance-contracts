@@ -5,7 +5,7 @@ const airdrop = Object.fromEntries(fs.readFileSync('./airdrop.json', {encoding: 
     .map((line) => JSON.parse(line))
     .map((entry) => [
         entry.owner.toLowerCase(),
-        (parseFloat(entry.past_tokens || 0) + parseFloat(entry.future_tokens || 0)) / 1e18
+        (BigInt(entry.past_tokens || 0) + BigInt(entry.future_tokens || 0))
     ]));
 
 /**
@@ -13,13 +13,14 @@ const airdrop = Object.fromEntries(fs.readFileSync('./airdrop.json', {encoding: 
  * @param {!express:Response} res HTTP response context.
  */
 exports.serve = (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
     const addresses = req.query.addresses.split(',');
     const results = addresses.map((address) => {
-        const value = airdrop[address];
+        const value = airdrop[address?.toLowerCase()];
         if(value === undefined) {
-            return {address, value: 0.0};
+            return {address, score: "0"};
         }
-        return {address, value};
+        return {address, score: value?.toString()};
     });
     res.status(200).json({score: results});
 };

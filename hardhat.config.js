@@ -57,6 +57,9 @@ module.exports = {
     },
     mainnet: {
       url: "http://localhost:8545/",
+    },
+    tenderly: {
+      url: "https://rpc.tenderly.co/fork/0bd64c90-e956-4837-a657-529faf7b6681"
     }
   },
 };

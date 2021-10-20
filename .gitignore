@@ -2,4 +2,7 @@ artifacts
 cache
 node_modules
 deployments/localhost
+deployments/tenderly
+airdrops/tenderly
+api/airdrop.json
 .idea
