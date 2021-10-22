@@ -25,7 +25,7 @@ contract ENSGovernor is Governor, GovernorProposalThreshold, GovernorCountingSim
     }
 
     function proposalThreshold() public pure override returns (uint256) {
-        return 1000e18;
+        return 100_000e18;
     }
 
     function quorumDenominator() public pure virtual override returns (uint256) {
