@@ -31,7 +31,7 @@ task("maketree", "Generates a merkle airdrop tree").setAction(async () => {
       const data = JSON.parse(line);
       const owner = data.owner;
       delete data.owner;
-      data.balance = ethers.BigNumber.from(data.past_tokens).add(ethers.BigNumber.from(data.future_tokens)).toString();
+      data.balance = ethers.BigNumber.from(data.past_tokens.toString().split('.')[0]).add(ethers.BigNumber.from(data.future_tokens.toString().split('.')[0])).toString();
       return [owner, data];
     });
     shardNybbles = 2;
@@ -59,7 +59,7 @@ module.exports = {
       url: "http://localhost:8545/",
     },
     tenderly: {
-      url: "https://rpc.tenderly.co/fork/0bd64c90-e956-4837-a657-529faf7b6681"
+      url: "https://rpc.tenderly.co/fork/f49d3bef-49e1-4ea1-a82a-30b7da74ebab"
     }
   },
 };
