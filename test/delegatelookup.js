@@ -33,7 +33,7 @@ describe("ENS delegate", () => {
         resolver = await Resolver.deploy(registry.address, ethers.constants.AddressZero);
         await resolver.deployed();
 
-        const ENSDelegate = await ethers.getContractFactory("ENSDelegate");
+        const ENSDelegate = await ethers.getContractFactory("ENSDelegateLookup");
         delegate = await ENSDelegate.deploy(registry.address, token.address);
         await registry.deployed();
 
