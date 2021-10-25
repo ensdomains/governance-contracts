@@ -7,7 +7,7 @@ import '@ensdomains/ens-contracts/contracts/resolvers/PublicResolver.sol';
 /**
  * @dev A utility contract that returns delegate info
  */
-contract ENSDelegate{
+contract ENSDelegateLookup {
     ENS ens;
     ENSToken token;
     struct Delegate { // Struct

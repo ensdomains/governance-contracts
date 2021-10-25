@@ -22,24 +22,23 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     uint256 public constant minimumMintInterval = 365 days;
     uint256 public constant mintCap = 200; // 2%
 
-    bytes32 public immutable merkleRoot;
-    
+    bytes32 public merkleRoot;
     uint256 public nextMint; // Timestamp
     uint256 public claimPeriodEnds; // Timestamp
     BitMaps.BitMap private claimed;
 
+    event MerkleRootChanged(bytes32 merkleRoot);
     event Claim(address indexed claimant, uint256 amount);
 
     /**
      * @dev Constructor.
      * @param freeSupply The number of tokens to issue to the contract deployer.
      * @param airdropSupply The number of tokens to reserve for the airdrop.
-     * @param _merkleRoot The merkle root of the airdrop merkle tree.
+     * @param _claimPeriodEnds The timestamp at which tokens are no longer claimable.
      */
     constructor(
         uint256 freeSupply,
         uint256 airdropSupply,
-        bytes32 _merkleRoot,
         uint256 _claimPeriodEnds
     )
         ERC20("Ethereum Name Service", "ENS")
@@ -47,7 +46,6 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     {
         _mint(msg.sender, freeSupply);
         _mint(address(this), airdropSupply);
-        merkleRoot = _merkleRoot;
         claimPeriodEnds = _claimPeriodEnds;
         nextMint = block.timestamp + minimumMintInterval;
     }
@@ -86,6 +84,16 @@ contract ENSToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
      */
     function isClaimed(uint256 index) public view returns (bool) {
         return claimed.get(index);
+    }
+
+    /**
+     * @dev Sets the merkle root. Only callable if the root is not yet set.
+     * @param _merkleRoot The merkle root to set.
+     */
+    function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
+        require(merkleRoot == bytes32(0), "ENS: Merkle root already set");
+        merkleRoot = _merkleRoot;
+        emit MerkleRootChanged(_merkleRoot);
     }
 
     /**

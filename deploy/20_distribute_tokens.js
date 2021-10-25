@@ -3,14 +3,10 @@ const config = require('../config');
 const oneToken = ethers.BigNumber.from(10).pow(18);
 
 module.exports = async ({getNamedAccounts, deployments}) => {
-  const {deploy} = deployments;
   const {deployer} = await getNamedAccounts();
   const ensToken = await ethers.getContract('ENSToken');
   const timelockController = await ethers.getContract('TimelockController');
   const tokenLock = await ethers.getContract('TokenLock');
-
-  // Transfer ownership of the token to the timelock controller
-  await ensToken.transferOwnership(timelockController.address);
 
   // Transfer locked tokens to the tokenlock
   const lockedDAOTokens = oneToken.mul(config.LOCKED_DAO_TOKENS);
