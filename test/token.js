@@ -50,7 +50,7 @@ describe("ENS token", () => {
         const signers = await ethers.getSigners();
         tree = ShardedMerkleTree.fromFiles('airdrops/hardhat');
         config.AIRDROP_MERKLE_ROOT = tree.root;
-        await deployments.fixture(['ENSToken']);
+        await deployments.fixture(['merkle']);
         token = await ethers.getContract("ENSToken");
     });
 

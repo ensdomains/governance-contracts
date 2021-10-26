@@ -11,7 +11,6 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
     args: [
       totalSupply.sub(tree.total),
       tree.total,
-      tree.root,
       Math.floor(new Date(config.CLAIM_PERIOD_ENDS).getTime() / 1000),
     ],
     log: true,
