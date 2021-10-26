@@ -59,7 +59,7 @@ module.exports = {
       url: "http://localhost:8545/",
     },
     tenderly: {
-      url: "https://rpc.tenderly.co/fork/0bd64c90-e956-4837-a657-529faf7b6681"
+      url: "https://rpc.tenderly.co/fork/bd704e15-7f2c-4f12-8c1a-9bedf536c336"
     }
   },
 };
