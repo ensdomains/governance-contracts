@@ -11,13 +11,11 @@ module.exports = async ({getNamedAccounts, deployments}) => {
   // Transfer locked tokens to the tokenlock
   const lockedDAOTokens = oneToken.mul(config.LOCKED_DAO_TOKENS);
   const totalContributorTokens = oneToken.mul(config.TOTAL_CONTRIBUTOR_TOKENS);
-  const lockedContributorTokens = oneToken.mul(config.LOCKED_CONTRIBUTOR_TOKENS);
   await ensToken.approve(tokenLock.address, lockedDAOTokens.add(lockedContributorTokens));
   await tokenLock.lock(timelockController.address, lockedDAOTokens);
-  await tokenLock.lock(config.CONTRIBUTOR_ADDRESS, lockedContributorTokens);
 
   // Transfer free contributor tokens to the contributor address
-  await ensToken.transfer(config.CONTRIBUTOR_ADDRESS, totalContributorTokens.sub(lockedContributorTokens));
+  await ensToken.transfer(config.CONTRIBUTOR_ADDRESS, totalContributorTokens);
 
   // Transfer free tokens to the timelock controller
   const balance = await ensToken.balanceOf(deployer);
