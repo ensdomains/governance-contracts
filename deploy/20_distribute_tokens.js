@@ -33,7 +33,7 @@ module.exports = async ({getNamedAccounts, deployments}) => {
   console.log(`  TokenLock: ${tokenlockBalance.div(oneToken).toString()}`);
   const lockedDaoBalance = await tokenLock.lockedAmounts(timelockController.address);
   console.log(`    DAO: ${lockedDaoBalance.div(oneToken).toString()}`);
-  console.log(`    TOTAL: ${lockedDaoBalance.add(lockedContributorBalance).div(oneToken).toString()}`);
+  console.log(`    TOTAL: ${lockedDaoBalance.div(oneToken).toString()}`);
   const total = daoBalance.add(contributorBalance).add(airdropBalance).add(tokenlockBalance);
   console.log(`  TOTAL: ${total.div(oneToken).toString()}`);
 };
