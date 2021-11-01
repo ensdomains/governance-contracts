@@ -72,7 +72,7 @@ module.exports = {
       accounts: real_accounts,
     },
     tenderly: {
-      url: "https://rpc.tenderly.co/fork/f49d3bef-49e1-4ea1-a82a-30b7da74ebab"
+      url: "https://rpc.tenderly.co/fork/bd704e15-7f2c-4f12-8c1a-9bedf536c336"
     }
   },
 };

@@ -5,7 +5,8 @@ const airdrop = Object.fromEntries(fs.readFileSync('./airdrop.json', {encoding: 
     .map((line) => JSON.parse(line))
     .map((entry) => [
         entry.owner.toLowerCase(),
-        (BigInt(entry.past_tokens || 0) + BigInt(entry.future_tokens || 0))
+        BigInt(entry.past_tokens.toString().split('.')[0] || 0)
+            + BigInt(entry.future_tokens.toString().split('.')[0] || 0)
     ]));
 
 /**
