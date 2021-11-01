@@ -9,8 +9,8 @@ module.exports = async ({getNamedAccounts, deployments}) => {
     log: true,
   });
   const governor = await ethers.getContract('ENSGovernor');
-  await timelockController.grantRole(await timelockController.PROPOSER_ROLE(), governor.address);
-  await timelockController.revokeRole(await timelockController.TIMELOCK_ADMIN_ROLE(), deployer);
+  await (await timelockController.grantRole(await timelockController.PROPOSER_ROLE(), governor.address)).wait();
+  await (await timelockController.revokeRole(await timelockController.TIMELOCK_ADMIN_ROLE(), deployer)).wait();
 };
 module.exports.tags = ['ENSGovernor'];
 module.exports.dependencies = ['ENSToken', 'TimelockController'];
