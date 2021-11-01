@@ -10,14 +10,12 @@ module.exports = async ({getNamedAccounts, deployments}) => {
 
   // Transfer locked tokens to the tokenlock
   const lockedDAOTokens = oneToken.mul(config.LOCKED_DAO_TOKENS);
-  const totalContributorTokens = oneToken.mul(config.TOTAL_CONTRIBUTOR_TOKENS);
-  const lockedContributorTokens = oneToken.mul(config.LOCKED_CONTRIBUTOR_TOKENS);
-  await ensToken.approve(tokenLock.address, lockedDAOTokens.add(lockedContributorTokens));
+  await ensToken.approve(tokenLock.address, lockedDAOTokens);
   await tokenLock.lock(timelockController.address, lockedDAOTokens);
-  await tokenLock.lock(config.CONTRIBUTOR_ADDRESS, lockedContributorTokens);
 
-  // Transfer free contributor tokens to the contributor address
-  await ensToken.transfer(config.CONTRIBUTOR_ADDRESS, totalContributorTokens.sub(lockedContributorTokens));
+  // Transfer contributor tokens to the contributor address
+  const totalContributorTokens = oneToken.mul(config.TOTAL_CONTRIBUTOR_TOKENS);
+  await ensToken.transfer(config.CONTRIBUTOR_ADDRESS, totalContributorTokens);
 
   // Transfer free tokens to the timelock controller
   const balance = await ensToken.balanceOf(deployer);
@@ -35,9 +33,7 @@ module.exports = async ({getNamedAccounts, deployments}) => {
   console.log(`  TokenLock: ${tokenlockBalance.div(oneToken).toString()}`);
   const lockedDaoBalance = await tokenLock.lockedAmounts(timelockController.address);
   console.log(`    DAO: ${lockedDaoBalance.div(oneToken).toString()}`);
-  const lockedContributorBalance = await tokenLock.lockedAmounts(config.CONTRIBUTOR_ADDRESS);
-  console.log(`    Contributors: ${lockedContributorBalance.div(oneToken).toString()}`);
-  console.log(`    TOTAL: ${lockedDaoBalance.add(lockedContributorBalance).div(oneToken).toString()}`);
+  console.log(`    TOTAL: ${lockedDaoBalance.div(oneToken).toString()}`);
   const total = daoBalance.add(contributorBalance).add(airdropBalance).add(tokenlockBalance);
   console.log(`  TOTAL: ${total.div(oneToken).toString()}`);
 };

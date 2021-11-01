@@ -9,6 +9,17 @@ require('hardhat-deploy');
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-waffle");
 
+// Load environment variables from .env file. Suppress warnings using silent
+// if this file is missing. dotenv will never modify any environment variables
+// that have already been set.
+// https://github.com/motdotla/dotenv
+require('dotenv').config({silent: true});
+
+real_accounts = undefined;
+if(process.env.DEPLOYER_KEY) {
+  real_accounts = [process.env.DEPLOYER_KEY];
+}
+
 task("maketree", "Generates a merkle airdrop tree").setAction(async () => {
   let airdrops;
   let shardNybbles = 1;
@@ -57,6 +68,8 @@ module.exports = {
     },
     mainnet: {
       url: "http://localhost:8545/",
+      chainId: 1,
+      accounts: real_accounts,
     },
     tenderly: {
       url: "https://rpc.tenderly.co/fork/bd704e15-7f2c-4f12-8c1a-9bedf536c336"
