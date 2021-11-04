@@ -70,6 +70,7 @@ module.exports = {
       url: "http://localhost:8545/",
       chainId: 1,
       accounts: real_accounts,
+      maxPriorityFeePerGas: 1000000000
     },
     tenderly: {
       url: "https://rpc.tenderly.co/fork/bd704e15-7f2c-4f12-8c1a-9bedf536c336"
