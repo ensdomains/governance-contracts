@@ -51,8 +51,7 @@ describe("Merkle Airdrop", () => {
         await deployments.fixture(['ENSToken']);
         token = await ethers.getContract("ENSToken");
         const MerkleAirdrop = await ethers.getContractFactory("MerkleAirdrop");
-        airdrop = await MerkleAirdrop.deploy(deployer, token.address);
-        await airdrop.setMerkleRoot(tree.root);
+        airdrop = await MerkleAirdrop.deploy(deployer, token.address, tree.root);
         await token.approve(airdrop.address, tree.total);
     });
 

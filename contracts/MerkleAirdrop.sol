@@ -12,9 +12,9 @@ import "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 contract MerkleAirdrop is Ownable {
     using BitMaps for BitMaps.BitMap;
 
-    address sender;
-    IERC20 public token;
-    bytes32 public merkleRoot;
+    address public immutable sender;
+    IERC20 public immutable token;
+    bytes32 public immutable merkleRoot;
     BitMaps.BitMap private claimed;
 
     event MerkleRootChanged(bytes32 merkleRoot);
@@ -25,9 +25,10 @@ contract MerkleAirdrop is Ownable {
      * @param _sender The account to send airdrop tokens from.
      * @param _token The token contract to send tokens with.
      */
-    constructor(address _sender, IERC20 _token) {
+    constructor(address _sender, IERC20 _token, bytes32 _merkleRoot) {
         sender = _sender;
         token = _token;
+        merkleRoot = _merkleRoot;
     }
 
     /**
@@ -54,15 +55,5 @@ contract MerkleAirdrop is Ownable {
      */
     function isClaimed(uint256 index) public view returns (bool) {
         return claimed.get(index);
-    }
-
-    /**
-     * @dev Sets the merkle root. Only callable if the root is not yet set.
-     * @param _merkleRoot The merkle root to set.
-     */
-    function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
-        require(merkleRoot == bytes32(0), "ENS: Merkle root already set");
-        merkleRoot = _merkleRoot;
-        emit MerkleRootChanged(_merkleRoot);
     }
 }
