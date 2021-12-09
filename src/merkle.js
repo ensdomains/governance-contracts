@@ -1,5 +1,5 @@
 const { MerkleTree } = require('merkletreejs');
-const keccak256 = require('@ethersproject/keccak256').keccak256;
+const keccak256 = require('keccak256');
 const { ethers } = require("ethers");
 
 function hashLeaf([address, entry]) {
