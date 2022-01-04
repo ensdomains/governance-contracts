@@ -14,6 +14,8 @@ module.exports = async ({getNamedAccounts, deployments}) => {
     ],
     log: true,
   });
+  return true;
 };
 module.exports.tags = ['TokenLock'];
 module.exports.dependencies = ['ENSToken'];
+module.exports.id = 'TokenLock';

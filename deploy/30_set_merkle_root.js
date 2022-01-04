@@ -6,6 +6,8 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
   const ensToken = await ethers.getContract('ENSToken');
 
   await ensToken.setMerkleRoot(tree.root);
+  return true;
 };
 module.exports.dependencies = ['ENSToken'];
 module.exports.tags = ['merkle'];
+module.exports.id = 'merkle';

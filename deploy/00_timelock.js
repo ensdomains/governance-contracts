@@ -10,5 +10,7 @@ module.exports = async ({getNamedAccounts, deployments}) => {
       args: [config.MIN_TIMELOCK_DELAY, [], [ZERO_ADDRESS]],
       log: true,
     });
+    return true;
   };
   module.exports.tags = ['TimelockController'];
+  module.exports.id = 'TimelockController';

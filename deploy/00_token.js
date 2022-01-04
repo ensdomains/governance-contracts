@@ -15,5 +15,7 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
     ],
     log: true,
   });
+  return true;
 };
 module.exports.tags = ['ENSToken'];
+module.exports.id = 'ENSToken';
