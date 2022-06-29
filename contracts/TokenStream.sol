@@ -11,10 +11,11 @@ contract TokenStream is Ownable {
     ERC20 public immutable token;
     address public immutable tokenSender;
     uint256 public immutable startTime;
-    uint256 public immutable endTime;
+    uint256 public endTime;
     uint256 public immutable streamingRate;
     uint256 public totalClaimed;
 
+    event Configured(address token, address tokenSender, uint256 startTime, uint256 endTime, uint256 streamingRate);
     event Claimed(address indexed recipient, uint256 amount);
 
     /**
@@ -32,6 +33,7 @@ contract TokenStream is Ownable {
         startTime = _startTime;
         endTime = _endTime;
         streamingRate = _streamingRate;
+        emit Configured(address(_token), _tokenSender, _startTime, _endTime, _streamingRate);
     }
 
     /**
@@ -64,5 +66,12 @@ contract TokenStream is Ownable {
         totalClaimed += amount;
         require(token.transferFrom(tokenSender, recipient, amount), "TokenStream: Transfer failed");
         emit Claimed(recipient, amount);
+    }
+
+    function setEndTime(uint256 _endTime) external {
+        require(msg.sender == tokenSender, "Only token sender may change the end time");
+        require(_endTime > startTime, "_endTime must be after startTime");
+        endTime = _endTime;
+        emit Configured(address(token), tokenSender, startTime, _endTime, streamingRate);
     }
 }
