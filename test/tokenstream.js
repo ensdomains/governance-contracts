@@ -80,4 +80,14 @@ describe("TokenStream", () => {
         const signers = await ethers.getSigners();
         await expect(tokenStream.connect(signers[0]).claim(account2.address, 100)).to.be.revertedWith("Ownable");
     });
+
+    it("should allow the sender to change the end time", async () => {
+        const signers = await ethers.getSigners();
+        await tokenStream.connect(signers[0]).setEndTime(startTime + 86400);
+        expect(await tokenStream.endTime()).to.equal(startTime + 86400);
+    });
+
+    it("should not allow anyone else to change the end time", async () => {
+        await expect(tokenStream.setEndTime(startTime + 86400)).to.be.revertedWith("Only token sender");
+    });
 });
