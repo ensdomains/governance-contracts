@@ -4,7 +4,7 @@ pragma solidity ^0.8.2;
 import "./ENSToken.sol";
 
 /**
- * @dev A child contract which will be deployed by the ERC20MultiVote utility contract
+ * @dev A child contract which will be deployed by the ENSMultiDelegate utility contract
  * This is a proxy delegator contract to vote given delegatee on behalf of original delegator
  */
 contract ENSProxyDelegator {
@@ -20,7 +20,7 @@ contract ENSProxyDelegator {
     /**
      * @dev Constructor.
      * @param _token The ENS token address
-     * @param _owner The address of the factory contract, in this case ERC20MultiVote
+     * @param _owner The address of the factory contract, in this case ENSMultiDelegate
      */
     constructor(ENSToken _token, address _owner) {
         token = _token;
