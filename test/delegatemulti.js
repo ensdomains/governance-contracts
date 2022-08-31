@@ -76,47 +76,45 @@ describe('ENS Multi Delegate', () => {
 
     // give allowance to multi delegate contract
     await token.approve(multiDelegate.address, delegatorTokenAmount);
-
     // delegate multiple delegatees
-    const delegatees = [deployer, delegatee, delegatee];
-    await multiDelegate.delegateMulti(delegatees, delegatorTokenAmount);
-
-    // retrieve proxy delegator contracts
-    const proxyDelegators = await multiDelegate.delegators();
-    // there must be 2 proxy delegators
-    expect(proxyDelegators.length).to.equal(delegatees.length);
-
-    const pxd0balance = await token.balanceOf(proxyDelegators[0]);
-    // check if proxy delegator balance is half of what delegator sent
-    expect(pxd0balance.toString()).to.equal(
-      delegatorTokenAmount.div(proxyDelegators.length).toString()
+    const delegatees = [deployer, delegatee];
+    await multiDelegate.delegateMulti(
+      delegatees,
+      delegatees.map((_) => delegatorTokenAmount.div(delegatees.length))
     );
 
-    const delegatorTokenAmount2 = await token.balanceOf(deployer);
-    // delegator now must have at most the remainder amonut
-    expect(delegatorTokenAmount2.toString()).to.equal(
-      BigNumber.from(delegatorTokenAmount)
-        .sub(BigNumber.from(pxd0balance).mul(delegatees.length))
-        .toString()
+    const delegatorTokenAmountAfter = await token.balanceOf(deployer);
+    expect(delegatorTokenAmountAfter.toString()).to.equal('0');
+
+
+    // delegator must have 1/4 of the votes the delegator delegated
+    const votesOfDelegator = await token.getVotes(deployer);
+    expect(votesOfDelegator.toString()).to.equal(
+      delegatorTokenAmount.div(delegatees.length).toString()
     );
 
-    // delegatee must have 2/3 of the votes the delegator delegated
+    // delegatee must have 3/4 of the votes the delegator delegated
     const votesOfDelegatee = await token.getVotes(delegatee);
     expect(votesOfDelegatee.toString()).to.equal(
-      BigNumber.from(pxd0balance).mul(2).toString()
+      delegatorTokenAmount.div(delegatees.length).toString()
     );
 
-    // withdraw tokens from proxy contracts back
-    await multiDelegate.withdraw();
-    const delegatorTokenAmount3 = await token.balanceOf(deployer);
-    // delegator now must have all tokens withdrawn
-    expect(delegatorTokenAmount3.toString()).to.equal(
-      delegatorTokenAmount.toString()
+    for (let delegateTokenId of delegatees) {
+      let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
+      expect(balance.toString()).to.equal(
+        delegatorTokenAmount.div(delegatees.length).toString()
+      );
+    }
+
+    await multiDelegate.withdraw(
+      delegatees,
+      delegatees.map((_) => delegatorTokenAmount.div(delegatees.length))
     );
 
-    // delegatee must not have any voting power after withdrawal
-    const votesOfDelegatee2 = await token.getVotes(delegatee);
-    expect(votesOfDelegatee2.toString()).to.equal('0');
+    for (let delegateTokenId of delegatees) {
+      let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
+      expect(balance.toString()).to.equal("0");
+    }
   });
 
   it('contract should revert if allowance is not provided', async () => {
@@ -124,8 +122,8 @@ describe('ENS Multi Delegate', () => {
 
     const delegatees = [delegatee];
     await expect(
-      multiDelegate.delegateMulti(delegatees, delegatorTokenAmount)
-    ).to.be.revertedWith('Check the token allowance');
+      multiDelegate.delegateMulti(delegatees, [delegatorTokenAmount])
+    ).to.be.revertedWith('ERC20: insufficient allowance');
   });
 
   it('contract should revert if allowance is lesser than provided amount', async () => {
@@ -137,8 +135,8 @@ describe('ENS Multi Delegate', () => {
 
     const delegatees = [delegatee];
     await expect(
-      multiDelegate.delegateMulti(delegatees, delegatorTokenAmount)
-    ).to.be.revertedWith('Check the token allowance');
+      multiDelegate.delegateMulti(delegatees, [delegatorTokenAmount])
+    ).to.be.revertedWith('ERC20: insufficient allowance');
   });
 
   it('contract should revert if no delegatee provided', async () => {
@@ -149,8 +147,19 @@ describe('ENS Multi Delegate', () => {
 
     const delegatees = [];
     await expect(
-      multiDelegate.delegateMulti(delegatees, delegatorTokenAmount)
+      multiDelegate.delegateMulti(delegatees, [delegatorTokenAmount])
     ).to.be.revertedWith('You should pick at least one delegatee');
   });
 
+  it('contract should revert if no amount provided', async () => {
+    const delegatorTokenAmount = await token.balanceOf(deployer);
+
+    // give allowance to multi delegate contract
+    await token.approve(multiDelegate.address, delegatorTokenAmount);
+
+    const delegatees = [];
+    await expect(
+      multiDelegate.delegateMulti(delegatees, [])
+    ).to.be.revertedWith('You should pick at least one delegatee');
+  });
 });
