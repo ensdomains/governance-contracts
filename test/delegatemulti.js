@@ -87,13 +87,13 @@ describe('ENS Multi Delegate', () => {
     expect(delegatorTokenAmountAfter.toString()).to.equal('0');
 
 
-    // delegator must have 1/4 of the votes the delegator delegated
+    // delegator must have 1/2 of the votes the delegator delegated
     const votesOfDelegator = await token.getVotes(deployer);
     expect(votesOfDelegator.toString()).to.equal(
       delegatorTokenAmount.div(delegatees.length).toString()
     );
 
-    // delegatee must have 3/4 of the votes the delegator delegated
+    // delegatee must have 1/2 of the votes the delegator delegated
     const votesOfDelegatee = await token.getVotes(delegatee);
     expect(votesOfDelegatee.toString()).to.equal(
       delegatorTokenAmount.div(delegatees.length).toString()
@@ -106,10 +106,7 @@ describe('ENS Multi Delegate', () => {
       );
     }
 
-    await multiDelegate.withdraw(
-      delegatees,
-      delegatees.map((_) => delegatorTokenAmount.div(delegatees.length))
-    );
+    await multiDelegate.withdraw(delegatees);
 
     for (let delegateTokenId of delegatees) {
       let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);

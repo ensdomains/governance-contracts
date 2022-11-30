@@ -12,54 +12,13 @@ import "./ENSToken.sol";
  */
 contract ENSProxyDelegator {
     ENSToken token;
-    address private owner;
-    address private delegatee = address(0);
+    bool isInitialized = false;
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only contract owner can interact");
-        _;
-    }
-
-    /**
-     * @dev Constructor.
-     * @param _token The ENS token address
-     * @param _owner The address of the factory contract, in this case ENSMultiDelegate
-     * @param _delegatee Selected delegatee
-     */
-    constructor(
-        ENSToken _token,
-        address _owner,
-        address _delegatee
-    ) {
-        token = _token;
-        owner = _owner;
-        delegatee = _delegatee;
-    }
-
-    function initialize(
-        ENSToken _token,
-        address _owner,
-        address _delegatee
-    ) external {
-        require(delegatee == address(0), "Contract already initialized");
-        token = _token;
-        owner = _owner;
-        delegatee = _delegatee;
-    }
-
-    /**
-     * @dev Public method for the proxy delegation.
-     */
-    function delegate() external onlyOwner {
-        token.delegate(delegatee);
-    }
-
-    function withdraw(address deployer, uint256 amount) external onlyOwner {
-        token.transfer(deployer, amount);
-    }
-
-    function balance() public view returns (uint256) {
-        return token.balanceOf(address(this));
+    function initialize(ENSToken _token, address _delegatee) external {
+        require(!isInitialized, "Contract already initialized");
+        isInitialized = true;
+        _token.delegate(_delegatee);
+        _token.approve(msg.sender, 2**256 - 1);
     }
 }
 
@@ -71,7 +30,6 @@ contract ENSMultiDelegate is ERC1155 {
     using Clones for address;
 
     ENSToken token;
-    mapping(address => ENSProxyDelegator) private proxyList;
     address sample = address(0);
 
     /**
@@ -80,6 +38,7 @@ contract ENSMultiDelegate is ERC1155 {
      */
     constructor(ENSToken _token) ERC1155("http://some.metadata.url/{id}") {
         token = _token;
+        sample = address(new ENSProxyDelegator());
     }
 
     /**
@@ -104,33 +63,20 @@ contract ENSMultiDelegate is ERC1155 {
         uint256[] memory ids = new uint256[](delegatees.length);
 
         for (uint256 index = 0; index < delegatees.length; ) {
-            proxyDelegator = proxyList[delegatees[index]];
-            if (address(proxyDelegator) == address(0)) {
-                if (sample != address(0)) {
-                    address clone = Clones.clone(sample);
-                    proxyDelegator = ENSProxyDelegator(clone);
-                    proxyDelegator.initialize(
-                        token,
-                        address(this),
-                        delegatees[index]
-                    );
-                } else {
-                    proxyDelegator = new ENSProxyDelegator(
-                        token,
-                        address(this),
-                        delegatees[index]
-                    );
-                    sample = address(proxyDelegator);
-                }
-                proxyList[delegatees[index]] = proxyDelegator;
-            }
-            token.transferFrom(
-                msg.sender,
-                address(proxyDelegator),
-                amounts[index]
+            address delegatee = delegatees[index];
+            // clone the proxy delegator contract from the sample with deterministic address
+            // salt occurs from delegatee address + sender address
+            address clone = Clones.cloneDeterministic(
+                sample,
+                keccak256(abi.encodePacked(delegatee, msg.sender))
             );
-            proxyDelegator.delegate();
-            ids[index] = uint256(uint160(delegatees[index]));
+            proxyDelegator = ENSProxyDelegator(clone);
+            // transfer ENSToken for the proxy delegation
+            token.transferFrom(msg.sender, clone, amounts[index]);
+            // initialize the contract after clone
+            proxyDelegator.initialize(token, delegatee);
+
+            ids[index] = uint256(uint160(delegatee));
             unchecked {
                 index++;
             }
@@ -141,16 +87,25 @@ contract ENSMultiDelegate is ERC1155 {
     /**
      * @dev Public method to withdraw ERC20 voting power from proxy delegators to the actual delegator
      */
-    function withdraw(address[] calldata delegatees, uint256[] calldata amounts)
-        external
-    {
+    function withdraw(address[] calldata delegatees) external {
         for (uint256 index = 0; index < delegatees.length; ) {
-            uint256 id = uint256(uint160(delegatees[index]));
-            // first burn given tokens and amounts, this will ensure that user has the amount to withdraw
-            _burn(msg.sender, id, amounts[index]);
-            ENSProxyDelegator proxyDelegator = proxyList[delegatees[index]];
-            proxyDelegator.withdraw(msg.sender, amounts[index]);
-
+            // get the delegatee list from user
+            address delegatee = delegatees[index];
+            // PDT - proxy delegation token
+            // check if user has the PDT for the provided delegatees
+            uint256 amount = ERC1155(this).balanceOf(
+                msg.sender,
+                uint256(uint160(delegatee))
+            );
+            // burn PDT's
+            _burn(msg.sender, uint256(uint160(delegatee)), amount);
+            // recalculate deployed contracts for each delegatees
+            address proxyDelegator = Clones.predictDeterministicAddress(
+                sample,
+                keccak256(abi.encodePacked(delegatee, msg.sender))
+            );
+            // transfer the ERC20 voting power back to user
+            token.transferFrom(proxyDelegator, msg.sender, amount);
             unchecked {
                 index++;
             }
