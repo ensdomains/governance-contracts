@@ -2,6 +2,8 @@
 pragma solidity ^0.8.2;
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
@@ -19,7 +21,7 @@ contract ERC20ProxyDelegator {
 /**
  * @dev A utility contract to let delegators to pick multiple delegatee
  */
-contract ERC20MultiDelegate is ERC1155 {
+contract ERC20MultiDelegate is ERC1155, Ownable {
     using Address for address;
 
     ERC20Votes token;
@@ -111,6 +113,10 @@ contract ERC20MultiDelegate is ERC1155 {
                 index++;
             }
         }
+    }
+
+    function setUri(string memory uri) external onlyOwner {
+        _setURI(uri);
     }
 
     function getAddress(bytes memory bytecode, uint256 _salt)
