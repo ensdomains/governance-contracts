@@ -16,14 +16,16 @@ function increaseTime(secs) {
 describe('ENS Multi Delegate', () => {
   let token;
   let deployer;
-  let delegatee;
+  let alice;
+  let bob;
+  let charlie;
   let resolver;
   let registry;
   let snapshot;
   let multiDelegate;
 
   before(async () => {
-    ({ deployer, delegatee } = await getNamedAccounts());
+    ({ deployer, alice, bob, charlie } = await getNamedAccounts());
   });
 
   beforeEach(async () => {
@@ -44,7 +46,7 @@ describe('ENS Multi Delegate', () => {
     await resolver.deployed();
 
     const ENSMultiDelegate = await ethers.getContractFactory(
-      'ENSMultiDelegate'
+      'ERC20MultiDelegate'
     );
     multiDelegate = await ENSMultiDelegate.deploy(token.address);
     await multiDelegate.deployed();
@@ -77,7 +79,7 @@ describe('ENS Multi Delegate', () => {
     // give allowance to multi delegate contract
     await token.approve(multiDelegate.address, delegatorTokenAmount);
     // delegate multiple delegatees
-    const delegatees = [deployer, delegatee];
+    const delegatees = [deployer, alice, bob, charlie];
     await multiDelegate.delegateMulti(
       delegatees,
       delegatees.map((_) => delegatorTokenAmount.div(delegatees.length))
@@ -94,7 +96,7 @@ describe('ENS Multi Delegate', () => {
     );
 
     // delegatee must have 1/2 of the votes the delegator delegated
-    const votesOfDelegatee = await token.getVotes(delegatee);
+    const votesOfDelegatee = await token.getVotes(alice);
     expect(votesOfDelegatee.toString()).to.equal(
       delegatorTokenAmount.div(delegatees.length).toString()
     );
@@ -117,7 +119,7 @@ describe('ENS Multi Delegate', () => {
   it('contract should revert if allowance is not provided', async () => {
     const delegatorTokenAmount = await token.balanceOf(deployer);
 
-    const delegatees = [delegatee];
+    const delegatees = [alice];
     await expect(
       multiDelegate.delegateMulti(delegatees, [delegatorTokenAmount])
     ).to.be.revertedWith('ERC20: insufficient allowance');
@@ -130,7 +132,7 @@ describe('ENS Multi Delegate', () => {
     // give allowance to multi delegate contract
     await token.approve(multiDelegate.address, customAmount);
 
-    const delegatees = [delegatee];
+    const delegatees = [bob];
     await expect(
       multiDelegate.delegateMulti(delegatees, [delegatorTokenAmount])
     ).to.be.revertedWith('ERC20: insufficient allowance');

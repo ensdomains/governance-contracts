@@ -2,43 +2,34 @@
 pragma solidity ^0.8.2;
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "./ENSToken.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
 /**
- * @dev A child contract which will be deployed by the ENSMultiDelegate utility contract
+ * @dev A child contract which will be deployed by the ERC20MultiDelegate utility contract
  * This is a proxy delegator contract to vote given delegatee on behalf of original delegator
  */
-contract ENSProxyDelegator {
-    ENSToken token;
-    bool isInitialized = false;
-
-    function initialize(ENSToken _token, address _delegatee) external {
-        require(!isInitialized, "Contract already initialized");
-        isInitialized = true;
+contract ERC20ProxyDelegator {
+    constructor(ERC20Votes _token, address _delegatee) {
+        _token.approve(msg.sender, type(uint256).max);
         _token.delegate(_delegatee);
-        _token.approve(msg.sender, 2**256 - 1);
     }
 }
 
 /**
  * @dev A utility contract to let delegators to pick multiple delegatee
  */
-contract ENSMultiDelegate is ERC1155 {
+contract ERC20MultiDelegate is ERC1155 {
     using Address for address;
-    using Clones for address;
 
-    ENSToken token;
-    address sample = address(0);
+    ERC20Votes token;
 
     /**
      * @dev Constructor.
      * @param _token The ERC20 token address
      */
-    constructor(ENSToken _token) ERC1155("http://some.metadata.url/{id}") {
+    constructor(ERC20Votes _token) ERC1155("http://some.metadata.url/{id}") {
         token = _token;
-        sample = address(new ENSProxyDelegator());
     }
 
     /**
@@ -59,22 +50,29 @@ contract ENSMultiDelegate is ERC1155 {
             "Amounts should be defined for each delegatee"
         );
 
-        ENSProxyDelegator proxyDelegator;
         uint256[] memory ids = new uint256[](delegatees.length);
 
         for (uint256 index = 0; index < delegatees.length; ) {
             address delegatee = delegatees[index];
             // clone the proxy delegator contract from the sample with deterministic address
             // salt occurs from delegatee address + sender address
-            address clone = Clones.cloneDeterministic(
-                sample,
-                keccak256(abi.encodePacked(delegatee, msg.sender))
+            bytes memory bytecode = getBytecode(token, delegatee);
+            bytes32 salt = keccak256(abi.encodePacked(delegatee, msg.sender));
+            address predeterminedProxyAddress = getAddress(
+                bytecode,
+                uint256(salt)
             );
-            proxyDelegator = ENSProxyDelegator(clone);
-            // transfer ENSToken for the proxy delegation
-            token.transferFrom(msg.sender, clone, amounts[index]);
-            // initialize the contract after clone
-            proxyDelegator.initialize(token, delegatee);
+            // transfer ERC20 for the proxy delegation
+            // initialize the contract after with predetermined address
+            token.transferFrom(
+                msg.sender,
+                predeterminedProxyAddress,
+                amounts[index]
+            );
+            new ERC20ProxyDelegator{salt: salt}(
+                token,
+                delegatee
+            );
 
             ids[index] = uint256(uint160(delegatee));
             unchecked {
@@ -99,16 +97,48 @@ contract ENSMultiDelegate is ERC1155 {
             );
             // burn PDT's
             _burn(msg.sender, uint256(uint160(delegatee)), amount);
-            // recalculate deployed contracts for each delegatees
-            address proxyDelegator = Clones.predictDeterministicAddress(
-                sample,
-                keccak256(abi.encodePacked(delegatee, msg.sender))
+            // recalculate deployed contract addresses for each delegatees
+            bytes memory bytecode = getBytecode(token, delegatee);
+            bytes32 salt = keccak256(abi.encodePacked(delegatee, msg.sender));
+            address predeterminedProxyAddress = getAddress(
+                bytecode,
+                uint256(salt)
             );
+
             // transfer the ERC20 voting power back to user
-            token.transferFrom(proxyDelegator, msg.sender, amount);
+            token.transferFrom(predeterminedProxyAddress, msg.sender, amount);
             unchecked {
                 index++;
             }
         }
+    }
+
+    function getAddress(bytes memory bytecode, uint256 _salt)
+        private
+        view
+        returns (address)
+    {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                _salt,
+                keccak256(bytecode)
+            )
+        );
+        return address(uint160(uint256(hash)));
+    }
+
+    function getBytecode(ERC20Votes _token, address _delegatee)
+        private
+        pure
+        returns (bytes memory)
+    {
+        bytes memory bytecode = type(ERC20ProxyDelegator).creationCode;
+        return
+            abi.encodePacked(
+                bytecode,
+                abi.encode(_token, _delegatee)
+            );
     }
 }
