@@ -54,7 +54,7 @@ contract ERC20MultiDelegate is ERC1155 {
 
         for (uint256 index = 0; index < delegatees.length; ) {
             address delegatee = delegatees[index];
-            // clone the proxy delegator contract from the sample with deterministic address
+            // creates a proxy delegator contract with deterministic address
             // salt occurs from delegatee address + sender address
             bytes memory bytecode = getBytecode(token, delegatee);
             bytes32 salt = keccak256(abi.encodePacked(delegatee, msg.sender));
