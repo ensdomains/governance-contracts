@@ -24,13 +24,17 @@ contract ERC20ProxyDelegator {
 contract ERC20MultiDelegate is ERC1155, Ownable {
     using Address for address;
 
-    ERC20Votes token;
+    ERC20Votes public token;
 
     /**
      * @dev Constructor.
      * @param _token The ERC20 token address
+     * @param _metadata_uri ERC1155 metadata uri
      */
-    constructor(ERC20Votes _token) ERC1155("http://some.metadata.url/{id}") {
+    constructor(
+        ERC20Votes _token,
+        string memory _metadata_uri
+    ) ERC1155(_metadata_uri) {
         token = _token;
     }
 
@@ -57,13 +61,11 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         for (uint256 index = 0; index < delegatees.length; ) {
             address delegatee = delegatees[index];
             // creates a proxy delegator contract with deterministic address
-            // salt occurs from delegatee address + sender address
-            bytes memory bytecode = getBytecode(token, delegatee);
-            bytes32 salt = keccak256(abi.encodePacked(delegatee, msg.sender));
-            address predeterminedProxyAddress = getAddress(
-                bytecode,
-                uint256(salt)
-            );
+            // salt occurs from delegatee address
+            (
+                address predeterminedProxyAddress,
+                bytes32 salt
+            ) = retrieveProxyContractAddress(token, delegatee);
             // transfer ERC20 for the proxy delegation
             // initialize the contract after with predetermined address
             token.transferFrom(
@@ -71,10 +73,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                 predeterminedProxyAddress,
                 amounts[index]
             );
-            new ERC20ProxyDelegator{salt: salt}(
-                token,
-                delegatee
-            );
+            new ERC20ProxyDelegator{salt: salt}(token, delegatee);
 
             ids[index] = uint256(uint160(delegatee));
             unchecked {
@@ -84,10 +83,49 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         _mintBatch(msg.sender, ids, amounts, "");
     }
 
+    function reDelegate(
+        address[] calldata source,
+        address[] calldata target
+    ) external {
+        require(
+            source.length == target.length,
+            "source and target delegatee amounts must be equal"
+        );
+        uint256[] memory _source = new uint256[](source.length);
+        uint256[] memory _target = new uint256[](source.length);
+        uint256[] memory _amounts = new uint256[](source.length);
+
+        for (uint index = 0; index < source.length; ) {
+            address from = source[index];
+            address to = target[index];
+            (
+                address predeterminedProxyAddress,
+
+            ) = retrieveProxyContractAddress(token, from);
+            uint256 amount = ERC1155(this).balanceOf(
+                msg.sender,
+                uint256(uint160(from))
+            );
+            _source[index] = uint256(uint160(from));
+            _target[index] = uint256(uint160(to));
+            _amounts[index] = amount;
+            token.transferFrom(predeterminedProxyAddress, to, amount);
+
+            unchecked {
+                index++;
+            }
+        }
+        _burnBatch(msg.sender, _source, _amounts);
+        _mintBatch(msg.sender, _target, _amounts, "");
+    }
+
     /**
      * @dev Public method to withdraw ERC20 voting power from proxy delegators to the actual delegator
+     * @param delegatees List of delegatee addresses
      */
     function withdraw(address[] calldata delegatees) external {
+        uint256[] memory _delegates = new uint256[](delegatees.length);
+        uint256[] memory _amounts = new uint256[](delegatees.length);
         for (uint256 index = 0; index < delegatees.length; ) {
             // get the delegatee list from user
             address delegatee = delegatees[index];
@@ -97,15 +135,13 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                 msg.sender,
                 uint256(uint160(delegatee))
             );
-            // burn PDT's
-            _burn(msg.sender, uint256(uint160(delegatee)), amount);
+            _delegates[index] = uint256(uint160(delegatee));
+            _amounts[index] = amount;
             // recalculate deployed contract addresses for each delegatees
-            bytes memory bytecode = getBytecode(token, delegatee);
-            bytes32 salt = keccak256(abi.encodePacked(delegatee, msg.sender));
-            address predeterminedProxyAddress = getAddress(
-                bytecode,
-                uint256(salt)
-            );
+            (
+                address predeterminedProxyAddress,
+
+            ) = retrieveProxyContractAddress(token, delegatee);
 
             // transfer the ERC20 voting power back to user
             token.transferFrom(predeterminedProxyAddress, msg.sender, amount);
@@ -113,17 +149,18 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                 index++;
             }
         }
+        // burn PDT's
+        _burnBatch(msg.sender, _delegates, _amounts);
     }
 
     function setUri(string memory uri) external onlyOwner {
         _setURI(uri);
     }
 
-    function getAddress(bytes memory bytecode, uint256 _salt)
-        private
-        view
-        returns (address)
-    {
+    function getAddress(
+        bytes memory bytecode,
+        uint256 _salt
+    ) private view returns (address) {
         bytes32 hash = keccak256(
             abi.encodePacked(
                 bytes1(0xff),
@@ -135,16 +172,20 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         return address(uint160(uint256(hash)));
     }
 
-    function getBytecode(ERC20Votes _token, address _delegatee)
-        private
-        pure
-        returns (bytes memory)
-    {
+    function getBytecode(
+        ERC20Votes _token,
+        address _delegatee
+    ) private pure returns (bytes memory) {
         bytes memory bytecode = type(ERC20ProxyDelegator).creationCode;
-        return
-            abi.encodePacked(
-                bytecode,
-                abi.encode(_token, _delegatee)
-            );
+        return abi.encodePacked(bytecode, abi.encode(_token, _delegatee));
+    }
+
+    function retrieveProxyContractAddress(
+        ERC20Votes _token,
+        address _delegatee
+    ) private view returns (address, bytes32) {
+        bytes memory bytecode = getBytecode(_token, _delegatee);
+        bytes32 salt = keccak256(abi.encode(_delegatee));
+        return (getAddress(bytecode, uint256(salt)), salt);
     }
 }
