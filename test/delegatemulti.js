@@ -152,6 +152,12 @@ describe('ENS Multi Delegate', () => {
         delegatorTokenAmount.div(delegatees.length).toString()
       );
     }
+
+    // delegatee must have 1/2 of the votes the delegator delegated
+    const votesOfNewDelegatee = await token.getVotes(charlie);
+    expect(votesOfNewDelegatee.toString()).to.equal(
+      delegatorTokenAmount.div(newDelegatees.length).toString()
+    );
   });
 
   it('contract should revert if allowance is not provided', async () => {

@@ -96,20 +96,34 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         uint256[] memory _amounts = new uint256[](source.length);
 
         for (uint index = 0; index < source.length; ) {
+
+            // retrieve proxy delegotor address of source
             address from = source[index];
-            address to = target[index];
             (
-                address predeterminedProxyAddress,
+                address proxyAddressFrom,
 
             ) = retrieveProxyContractAddress(token, from);
+
+            // retrieve proxy delegotor address of target
+            address to = target[index];
+            (
+                address proxyAddressTo,
+                bytes32 salt
+            ) = retrieveProxyContractAddress(token, to);
+
+            // amount the user delegated for source will be re-delegated to the target
             uint256 amount = ERC1155(this).balanceOf(
                 msg.sender,
                 uint256(uint160(from))
             );
+
             _source[index] = uint256(uint160(from));
             _target[index] = uint256(uint160(to));
             _amounts[index] = amount;
-            token.transferFrom(predeterminedProxyAddress, to, amount);
+            token.transferFrom(proxyAddressFrom, proxyAddressTo, amount);
+
+            // in case re-delegated addresses does not have a ProxyDelegator contract deployed
+            new ERC20ProxyDelegator{salt: salt}(token, to);
 
             unchecked {
                 index++;
