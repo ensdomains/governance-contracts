@@ -40,135 +40,176 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
     /**
      * @dev Public method for the delegation of multiple delegatees.
-     * @param delegatees List of delegatee addresses
-     * @param amounts ERC20 voting power amount to be distributed among delegatees
+     * @param delegatees The list of delegatee addresses.
+     * @param amounts The corresponding list of ERC20 voting power amount amounts to delegate.
      */
     function delegateMulti(
         address[] calldata delegatees,
         uint256[] calldata amounts
     ) external {
+        uint256 delegateesLength = delegatees.length;
+
         require(
-            delegatees.length > 0,
-            "You should pick at least one delegatee"
+            delegateesLength > 0,
+            "DelegateMulti: You should pick at least one delegatee"
         );
         require(
-            delegatees.length == amounts.length,
-            "Amounts should be defined for each delegatee"
+            delegateesLength == amounts.length,
+            "DelegateMulti: Amounts should be defined for each delegatee"
         );
 
-        uint256[] memory ids = new uint256[](delegatees.length);
+        uint256[] memory ids = new uint256[](delegateesLength);
 
-        for (uint256 index = 0; index < delegatees.length; ) {
+        for (uint256 index = 0; index < delegateesLength; index++) {
             address delegatee = delegatees[index];
-            // creates a proxy delegator contract with deterministic address
-            // salt occurs from delegatee address
-            (
-                address predeterminedProxyAddress,
-                bytes32 salt
-            ) = retrieveProxyContractAddress(token, delegatee);
-            // transfer ERC20 for the proxy delegation
-            // initialize the contract after with predetermined address
-            token.transferFrom(
-                msg.sender,
-                predeterminedProxyAddress,
-                amounts[index]
-            );
-            new ERC20ProxyDelegator{salt: salt}(token, delegatee);
+            uint256 amount = amounts[index];
+
+            createProxyDelegatorAndTransfer(delegatee, amount);
 
             ids[index] = uint256(uint160(delegatee));
-            unchecked {
-                index++;
-            }
         }
-        _mintBatch(msg.sender, ids, amounts, "");
+
+        mintBatch(msg.sender, ids, amounts);
     }
 
     function reDelegate(
         address[] calldata source,
         address[] calldata target
     ) external {
+        uint256 sourceLength = source.length;
         require(
-            source.length == target.length,
-            "source and target delegatee amounts must be equal"
+            sourceLength > 0,
+            "ReDelegate: You should pick at least one source delegatee"
         );
-        uint256[] memory _source = new uint256[](source.length);
-        uint256[] memory _target = new uint256[](source.length);
-        uint256[] memory _amounts = new uint256[](source.length);
+        require(
+            sourceLength == target.length,
+            "ReDelegate: Source and target delegatee amounts must be equal"
+        );
 
-        for (uint index = 0; index < source.length; ) {
+        uint256[] memory sourceIds = new uint256[](sourceLength);
+        uint256[] memory targetIds = new uint256[](sourceLength);
+        uint256[] memory amounts = new uint256[](sourceLength);
 
-            // retrieve proxy delegotor address of source
+        for (uint index = 0; index < sourceLength; index++) {
             address from = source[index];
-            (
-                address proxyAddressFrom,
-
-            ) = retrieveProxyContractAddress(token, from);
-
-            // retrieve proxy delegotor address of target
             address to = target[index];
-            (
-                address proxyAddressTo,
-                bytes32 salt
-            ) = retrieveProxyContractAddress(token, to);
 
-            // amount the user delegated for source will be re-delegated to the target
-            uint256 amount = ERC1155(this).balanceOf(
-                msg.sender,
-                uint256(uint160(from))
-            );
+            uint256 amount = getBalanceForDelegatee(from);
+            sourceIds[index] = uint256(uint160(from));
+            targetIds[index] = uint256(uint160(to));
+            amounts[index] = amount;
 
-            _source[index] = uint256(uint160(from));
-            _target[index] = uint256(uint160(to));
-            _amounts[index] = amount;
-            token.transferFrom(proxyAddressFrom, proxyAddressTo, amount);
+            transferBetweenDelegators(from, to, amount);
 
-            // in case re-delegated addresses does not have a ProxyDelegator contract deployed
-            new ERC20ProxyDelegator{salt: salt}(token, to);
-
-            unchecked {
-                index++;
-            }
+            deployProxyDelegatorIfNeeded(to);
         }
-        _burnBatch(msg.sender, _source, _amounts);
-        _mintBatch(msg.sender, _target, _amounts, "");
+
+        burnBatch(msg.sender, sourceIds, amounts);
+        mintBatch(msg.sender, targetIds, amounts);
     }
 
     /**
-     * @dev Public method to withdraw ERC20 voting power from proxy delegators to the actual delegator
+     * @dev Withdraw delegated ERC20 voting power from proxy delegators to the actual delegator
      * @param delegatees List of delegatee addresses
      */
     function withdraw(address[] calldata delegatees) external {
-        uint256[] memory _delegates = new uint256[](delegatees.length);
-        uint256[] memory _amounts = new uint256[](delegatees.length);
-        for (uint256 index = 0; index < delegatees.length; ) {
-            // get the delegatee list from user
+        uint256 delegateesLength = delegatees.length;
+
+        require(
+            delegateesLength > 0,
+            "Withdraw: You should pick at least one delegatee"
+        );
+
+        uint256[] memory delegates = new uint256[](delegateesLength);
+        uint256[] memory amounts = new uint256[](delegateesLength);
+
+        for (uint256 index = 0; index < delegateesLength; index++) {
             address delegatee = delegatees[index];
-            // PDT - proxy delegation token
-            // check if user has the PDT for the provided delegatees
-            uint256 amount = ERC1155(this).balanceOf(
-                msg.sender,
-                uint256(uint160(delegatee))
-            );
-            _delegates[index] = uint256(uint160(delegatee));
-            _amounts[index] = amount;
-            // recalculate deployed contract addresses for each delegatees
-            (
-                address predeterminedProxyAddress,
+            uint256 amount = getBalanceForDelegatee(delegatee);
+            delegates[index] = uint256(uint160(delegatee));
+            amounts[index] = amount;
 
-            ) = retrieveProxyContractAddress(token, delegatee);
-
-            // transfer the ERC20 voting power back to user
-            token.transferFrom(predeterminedProxyAddress, msg.sender, amount);
-            unchecked {
-                index++;
-            }
+            address proxyAddress = getProxyContractAddress(delegatee);
+            transferVotingPower(proxyAddress, msg.sender, amount);
         }
-        // burn PDT's
-        _burnBatch(msg.sender, _delegates, _amounts);
+
+        burnBatch(msg.sender, delegates, amounts);
     }
 
     function setUri(string memory uri) external onlyOwner {
         _setURI(uri);
+    }
+
+    function createProxyDelegatorAndTransfer(
+        address delegatee,
+        uint256 amount
+    ) internal {
+        address proxyAddress = deployProxyDelegatorIfNeeded(delegatee);
+        token.transferFrom(msg.sender, proxyAddress, amount);
+    }
+
+    function transferBetweenDelegators(
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        address proxyAddressFrom = getProxyContractAddress(from);
+        address proxyAddressTo = getProxyContractAddress(to);
+        token.transferFrom(proxyAddressFrom, proxyAddressTo, amount);
+    }
+
+    function deployProxyDelegatorIfNeeded(
+        address delegatee
+    ) internal returns (address) {
+        (address proxyAddress, bytes32 salt) = retrieveProxyContractAddress(
+            token,
+            delegatee
+        );
+        new ERC20ProxyDelegator{salt: salt}(token, delegatee);
+        return proxyAddress;
+    }
+
+    function getBalanceForDelegatee(
+        address delegatee
+    ) internal view returns (uint256) {
+        return ERC1155(this).balanceOf(msg.sender, uint256(uint160(delegatee)));
+    }
+
+    function getProxyContractAddress(
+        address delegatee
+    ) internal view returns (address) {
+        (address proxyAddress, ) = retrieveProxyContractAddress(
+            token,
+            delegatee
+        );
+        return proxyAddress;
+    }
+
+    function transferVotingPower(
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        require(
+            token.transferFrom(from, to, amount),
+            "Failed to transfer voting power"
+        );
+    }
+
+    function mintBatch(
+        address account,
+        uint256[] memory ids,
+        uint256[] memory amounts
+    ) internal {
+        _mintBatch(account, ids, amounts, "");
+    }
+
+    function burnBatch(
+        address account,
+        uint256[] memory ids,
+        uint256[] memory amounts
+    ) internal {
+        _burnBatch(account, ids, amounts);
     }
 
     function getAddress(
