@@ -217,7 +217,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         _burnBatch(account, ids, amounts);
     }
 
-    function getAddress(
+    function getContractAddress(
         bytes memory bytecode,
         uint256 _salt
     ) private view returns (address) {
@@ -246,6 +246,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     ) private view returns (address, bytes32) {
         bytes memory bytecode = getBytecode(_token, _delegatee);
         bytes32 salt = keccak256(abi.encode(_delegatee));
-        return (getAddress(bytecode, uint256(salt)), salt);
+        return (getContractAddress(bytecode, uint256(salt)), salt);
     }
 }
