@@ -71,9 +71,14 @@ describe('ENS Multi Delegate', () => {
     await token.approve(multiDelegate.address, delegatorTokenAmount);
     // delegate multiple delegatees
     const delegatees = [deployer, alice, bob, charlie];
-    await multiDelegate.delegateMulti(
-      delegatees,
-      delegatees.map((_) => delegatorTokenAmount.div(delegatees.length))
+
+    const delegateeAmountArray = delegatees.map((delegatee) => ([
+      delegatee,
+      delegatorTokenAmount.div(delegatees.length)
+    ]))
+
+    await multiDelegate.depositMulti(
+      delegateeAmountArray
     );
 
     const delegatorTokenAmountAfter = await token.balanceOf(deployer);
@@ -99,7 +104,7 @@ describe('ENS Multi Delegate', () => {
       );
     }
 
-    await multiDelegate.withdraw(delegatees);
+    await multiDelegate.withdrawMulti(delegatees);
 
     for (let delegateTokenId of delegatees) {
       let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
@@ -115,9 +120,14 @@ describe('ENS Multi Delegate', () => {
     await token.approve(multiDelegate.address, delegatorTokenAmount);
     // delegate multiple delegatees
     const delegatees = [deployer, alice];
-    await multiDelegate.delegateMulti(
-      delegatees,
-      delegatees.map((_) => delegatorTokenAmount.div(delegatees.length))
+
+    const delegateeAmountArray = delegatees.map((delegatee) => ([
+      delegatee,
+      delegatorTokenAmount.div(delegatees.length)
+    ]))
+
+    await multiDelegate.depositMulti(
+      delegateeAmountArray
     );
 
     const delegatorTokenAmountAfter = await token.balanceOf(deployer);
@@ -139,7 +149,12 @@ describe('ENS Multi Delegate', () => {
 
     const newDelegatees = [bob, charlie];
 
-    await multiDelegate.reDelegate(delegatees, newDelegatees);
+    const sourceTargetDelegateeArray = newDelegatees.map((newDelegatee, index) => [
+      delegatees[index],
+      newDelegatee
+    ]);
+
+    await multiDelegate.reDeposit(sourceTargetDelegateeArray);
 
     for (let delegateTokenId of delegatees) {
       let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
@@ -164,8 +179,16 @@ describe('ENS Multi Delegate', () => {
     const delegatorTokenAmount = await token.balanceOf(deployer);
 
     const delegatees = [alice];
+    
+    const delegateeAmountArray = delegatees.map((delegatee) => ([
+      delegatee,
+      delegatorTokenAmount.div(delegatees.length)
+    ]));
+
     await expect(
-      multiDelegate.delegateMulti(delegatees, [delegatorTokenAmount])
+      multiDelegate.depositMulti(
+        delegateeAmountArray
+      )
     ).to.be.revertedWith('ERC20: insufficient allowance');
   });
 
@@ -177,8 +200,12 @@ describe('ENS Multi Delegate', () => {
     await token.approve(multiDelegate.address, customAmount);
 
     const delegatees = [bob];
+    const delegateeAmountArray = delegatees.map((delegatee) => ([
+      delegatee,
+      delegatorTokenAmount.div(delegatees.length)
+    ]));
     await expect(
-      multiDelegate.delegateMulti(delegatees, [delegatorTokenAmount])
+      multiDelegate.depositMulti(delegateeAmountArray)
     ).to.be.revertedWith('ERC20: insufficient allowance');
   });
 
@@ -189,20 +216,12 @@ describe('ENS Multi Delegate', () => {
     await token.approve(multiDelegate.address, delegatorTokenAmount);
 
     const delegatees = [];
+    const delegateeAmountArray = delegatees.map((delegatee) => ([
+      delegatee,
+      delegatorTokenAmount.div(delegatees.length)
+    ]));
     await expect(
-      multiDelegate.delegateMulti(delegatees, [delegatorTokenAmount])
-    ).to.be.revertedWith('You should pick at least one delegatee');
-  });
-
-  it('contract should revert if no amount provided', async () => {
-    const delegatorTokenAmount = await token.balanceOf(deployer);
-
-    // give allowance to multi delegate contract
-    await token.approve(multiDelegate.address, delegatorTokenAmount);
-
-    const delegatees = [];
-    await expect(
-      multiDelegate.delegateMulti(delegatees, [])
+      multiDelegate.depositMulti(delegateeAmountArray)
     ).to.be.revertedWith('You should pick at least one delegatee');
   });
 });

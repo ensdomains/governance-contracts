@@ -26,6 +26,16 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
     ERC20Votes public token;
 
+    struct DelegateeAmount {
+        address delegatee;
+        uint256 amount;
+    }
+
+    struct SourceTargetDelegatee {
+        address source;
+        address target;
+    }
+
     /**
      * @dev Constructor.
      * @param _token The ERC20 token address
@@ -40,59 +50,49 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
     /**
      * @dev Public method for the delegation of multiple delegatees.
-     * @param delegatees The list of delegatee addresses.
-     * @param amounts The corresponding list of ERC20 voting power amount amounts to delegate.
+     * @param delegateeAmounts The list of delegatee addresses and corresponding list of ERC20 voting power amount amounts to delegate.
      */
-    function delegateMulti(
-        address[] calldata delegatees,
-        uint256[] calldata amounts
+    function depositMulti(
+        DelegateeAmount[] calldata delegateeAmounts
     ) external {
-        uint256 delegateesLength = delegatees.length;
+        uint256 delegateesLength = delegateeAmounts.length;
 
         require(
             delegateesLength > 0,
-            "DelegateMulti: You should pick at least one delegatee"
-        );
-        require(
-            delegateesLength == amounts.length,
-            "DelegateMulti: Amounts should be defined for each delegatee"
+            "DepositMulti: You should pick at least one delegatee"
         );
 
         uint256[] memory ids = new uint256[](delegateesLength);
+        uint256[] memory amounts = new uint256[](delegateesLength);
 
         for (uint256 index = 0; index < delegateesLength; index++) {
-            address delegatee = delegatees[index];
-            uint256 amount = amounts[index];
+            address delegatee = delegateeAmounts[index].delegatee;
+            uint256 amount = delegateeAmounts[index].amount;
 
             createProxyDelegatorAndTransfer(delegatee, amount);
 
             ids[index] = uint256(uint160(delegatee));
+            amounts[index] = amount;
         }
 
         mintBatch(msg.sender, ids, amounts);
     }
 
-    function reDelegate(
-        address[] calldata source,
-        address[] calldata target
-    ) external {
-        uint256 sourceLength = source.length;
+    function reDeposit(SourceTargetDelegatee[] calldata delegateePairs) external {
+        uint256 delegateePairsLength = delegateePairs.length;
+
         require(
-            sourceLength > 0,
-            "ReDelegate: You should pick at least one source delegatee"
-        );
-        require(
-            sourceLength == target.length,
-            "ReDelegate: Source and target delegatee amounts must be equal"
+            delegateePairsLength > 0,
+            "ReDeposit: You should pick at least one source and target delegatee pair"
         );
 
-        uint256[] memory sourceIds = new uint256[](sourceLength);
-        uint256[] memory targetIds = new uint256[](sourceLength);
-        uint256[] memory amounts = new uint256[](sourceLength);
+        uint256[] memory sourceIds = new uint256[](delegateePairsLength);
+        uint256[] memory targetIds = new uint256[](delegateePairsLength);
+        uint256[] memory amounts = new uint256[](delegateePairsLength);
 
-        for (uint index = 0; index < sourceLength; index++) {
-            address from = source[index];
-            address to = target[index];
+        for (uint index = 0; index < delegateePairsLength; index++) {
+            address from = delegateePairs[index].source;
+            address to = delegateePairs[index].target;
 
             uint256 amount = getBalanceForDelegatee(from);
             sourceIds[index] = uint256(uint160(from));
@@ -112,12 +112,12 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * @dev Withdraw delegated ERC20 voting power from proxy delegators to the actual delegator
      * @param delegatees List of delegatee addresses
      */
-    function withdraw(address[] calldata delegatees) external {
+    function withdrawMulti(address[] calldata delegatees) external {
         uint256 delegateesLength = delegatees.length;
 
         require(
             delegateesLength > 0,
-            "Withdraw: You should pick at least one delegatee"
+            "WithdrawMulti: You should pick at least one delegatee"
         );
 
         uint256[] memory delegates = new uint256[](delegateesLength);
