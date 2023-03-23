@@ -49,7 +49,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     }
 
     /**
-     * @dev Public method for the delegation of multiple delegatees.
+     * @dev Deposits and delegates voting power to the multiple delegatees.
      * @param delegateeAmounts The list of delegatee addresses and corresponding list of ERC20 voting power amount amounts to delegate.
      */
     function depositMulti(
@@ -78,6 +78,11 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         mintBatch(msg.sender, ids, amounts);
     }
 
+    /**
+    * @dev Re-delegates voting power between delegatees.
+    * @param delegateePairs The list of current delegatee addresses (from which the voting power is withdrawn) 
+    * and target delegatee addresses (which the voting power will be delegated).
+    */
     function reDeposit(SourceTargetDelegatee[] calldata delegateePairs) external {
         uint256 delegateePairsLength = delegateePairs.length;
 
@@ -109,7 +114,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     }
 
     /**
-     * @dev Withdraw delegated ERC20 voting power from proxy delegators to the actual delegator
+     * @dev Withdraws delegated ERC20 voting power from proxy delegators to the actual delegator
      * @param delegatees List of delegatee addresses
      */
     function withdrawMulti(address[] calldata delegatees) external {
