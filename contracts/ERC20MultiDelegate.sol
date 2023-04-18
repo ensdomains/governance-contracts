@@ -322,7 +322,17 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             token,
             delegatee
         );
-        new ERC20ProxyDelegator{salt: salt}(token, delegatee);
+
+        // check if the proxy contract has already been deployed
+        bytes memory bytecode;
+        assembly {
+            bytecode := extcodesize(proxyAddress)
+        }
+
+        // if the proxy contract has not been deployed, deploy it
+        if (bytecode.length == 0) {
+            new ERC20ProxyDelegator{salt: salt}(token, delegatee);
+        }
         return proxyAddress;
     }
 
