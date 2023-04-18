@@ -106,7 +106,7 @@ describe('ENS Multi Delegate', () => {
         );
       }
 
-      await multiDelegate.withdrawMulti(delegatees);
+      await multiDelegate.withdrawMulti(delegateeAmountArray);
 
       for (let delegateTokenId of delegatees) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
@@ -291,13 +291,11 @@ describe('ENS Multi Delegate', () => {
 
       for (let delegateTokenId of delegatees) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
-        console.log('old balance', balance.toString());
-        // expect(balance.toString()).to.equal('0');
+        expect(balance.toString()).to.equal('0');
       }
 
       for (let delegateTokenId of newDelegatees) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
-        console.log('new balance', balance.toString());
         expect(balance.toString()).to.equal(
           delegatorTokenAmount.div(newDelegatees.length).toString()
         );
@@ -307,6 +305,160 @@ describe('ENS Multi Delegate', () => {
       expect(votesOfNewDelegatee.toString()).to.equal(
         delegatorTokenAmount.div(newDelegatees.length).toString()
       );
+    });
+
+    it('contract should revert if target amount is higher than source amount', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+      // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
+
+      // give allowance to multi delegate contract
+      await token.approve(multiDelegate.address, delegatorTokenAmount);
+      // delegate multiple delegatees
+      const delegatees = [deployer, alice];
+
+      const delegateeAmountArray = delegatees.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(delegatees.length),
+      ]);
+
+      await multiDelegate.depositMulti(delegateeAmountArray);
+
+      const newDelegatees = [bob, charlie, dave];
+
+      const sourceDelegateeArray = delegatees.map((oldDelegatee) => [
+        oldDelegatee,
+        delegatorTokenAmount.div(delegatees.length * 2),
+      ]);
+
+      const targetDelegateeArray = newDelegatees.map((newDelegatee) => [
+        newDelegatee,
+        delegatorTokenAmount.div(newDelegatees.length),
+      ]);
+
+      await expect(
+        multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
+      ).to.be.revertedWith('ReDeposit: Total target amount cannot be greater than source amount');
+    });
+
+    it('contract should revert if at least one source address is not delegatee of the caller', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+      // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
+
+      // give allowance to multi delegate contract
+      await token.approve(multiDelegate.address, delegatorTokenAmount);
+      // delegate multiple delegatees
+      const delegateeList = [deployer, alice];
+
+      const delegateeAmountArray = delegateeList.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(delegateeList.length),
+      ]);
+
+      await multiDelegate.depositMulti(delegateeAmountArray);
+
+      const wrongDelegateeList = [charlie, alice];
+      const newDelegateeList = [ bob ];
+
+      const sourceDelegateeArray = wrongDelegateeList.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(wrongDelegateeList.length),
+      ]);
+
+      const targetDelegateeArray = newDelegateeList.map((newDelegatee) => [
+        newDelegatee,
+        delegatorTokenAmount.div(newDelegateeList.length),
+      ]);
+
+      await expect(
+        multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
+      ).to.be.revertedWith('ReDeposit: Insufficient balance in the source delegatee');
+    });
+  });
+
+  describe('withdraw', () => {
+    it('contract should be able to withdraw partially', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+      // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
+
+      // give allowance to multi delegate contract
+      await token.approve(multiDelegate.address, delegatorTokenAmount);
+      // delegate multiple delegatees
+      const delegatees = [deployer, alice, bob, charlie];
+
+      const delegateeDepositAmountArray = delegatees.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(delegatees.length),
+      ]);
+
+      await multiDelegate.depositMulti(delegateeDepositAmountArray);
+
+      const delegateeWithdrawAmountArray = delegatees.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(delegatees.length * 2),
+      ]);
+
+      await multiDelegate.withdrawMulti(delegateeWithdrawAmountArray);
+
+      for (let delegateTokenId of delegatees) {
+        let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
+        expect(balance.toString()).to.equal(
+          delegatorTokenAmount.div(delegatees.length * 2).toString()
+        );
+      }
+    });
+
+    it('contract should fail to withdraw if amount exceeds', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+      // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
+
+      // give allowance to multi delegate contract
+      await token.approve(multiDelegate.address, delegatorTokenAmount);
+      // delegate multiple delegatees
+      const delegateeList = [deployer, alice, bob, charlie];
+
+      const delegateeDepositAmountArray = delegateeList.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(delegateeList.length),
+      ]);
+
+      await multiDelegate.depositMulti(delegateeDepositAmountArray);
+
+      const delegateeWithdrawAmountArray = delegateeList.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(delegateeList.length / 2),
+      ]);
+
+      await expect(
+        multiDelegate.withdrawMulti(delegateeWithdrawAmountArray)
+      ).to.be.revertedWith('WithdrawMulti: Requested amount exceeds delegatee balance');
+    });
+
+    it('contract should fail to withdraw if delegatee was not delegated', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+      // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
+
+      // give allowance to multi delegate contract
+      await token.approve(multiDelegate.address, delegatorTokenAmount);
+      // delegate multiple delegatees
+      const delegateeList = [deployer, alice, bob, charlie];
+
+      const delegateeDepositAmountArray = delegateeList.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(delegateeList.length),
+      ]);
+
+      await multiDelegate.depositMulti(delegateeDepositAmountArray);
+
+      const wrongDelegateeList = [deployer, alice, bob, dave];
+
+      const delegateeWithdrawAmountArray = wrongDelegateeList.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(wrongDelegateeList.length),
+      ]);
+
+      await expect(
+        multiDelegate.withdrawMulti(delegateeWithdrawAmountArray)
+      ).to.be.revertedWith('WithdrawMulti: Requested amount exceeds delegatee balance');
     });
   });
 
