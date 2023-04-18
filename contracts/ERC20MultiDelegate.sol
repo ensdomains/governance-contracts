@@ -128,24 +128,13 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         _reDeposit(sources, targets, record);
 
         require(
-            record.remainingTargetAmount == 0, 
+            record.remainingTargetAmount == 0,
             "ReDeposit: Total target amount cannot be greater than source amount"
         );
 
-        // Reimburse remaining amount to the owner
+        // Reimburses any remaining source amounts back to the delegator after the re-deposit process.
         if (record.remainingSourceAmount > 0) {
-            transferBetweenDelegators(
-                sources[sourcesLength - 1].source,
-                msg.sender,
-                record.remainingSourceAmount
-            );
-            record.totalRedepositedAmount += record.remainingSourceAmount;
-            record.sourceIds[record.sourceIndex] = uint256(
-                uint160(sources[record.sourceIndex].source)
-            );
-            record.withdrawnAmounts[record.sourceIndex] = sources[
-                record.sourceIndex
-            ].amount;
+            _reimburse(record, sources, sourcesLength, msg.sender);
         }
 
         burnBatch(msg.sender, record.sourceIds, record.withdrawnAmounts);
@@ -262,6 +251,46 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
         // Return the transfer amount.
         return transferAmount;
+    }
+
+    /**
+     * @dev Reimburses any remaining source amounts back to the delegator after the re-deposit process.
+     * @param record The current state of the re-deposit process.
+     * @param sources The list of source delegatee addresses and amounts to withdraw.
+     * @param sourcesLength The length of the sources array.
+     * @param delegator The address of the delegator.
+     */
+    function _reimburse(
+        ReDepositRecord memory record,
+        SourceAmount[] memory sources,
+        uint256 sourcesLength,
+        address delegator
+    ) internal {
+        // Iterate through the remaining source delegatees
+        while (record.sourceIndex < sourcesLength) {
+            // Transfer the remaining source amount or the full source amount 
+            // (if no remaining amount) to the delegator
+            transferBetweenDelegators(
+                sources[record.sourceIndex].source,
+                delegator,
+                record.remainingSourceAmount > 0
+                    ? record.remainingSourceAmount
+                    : sources[record.sourceIndex].amount
+            );
+
+            // Add the source delegatee ID to the record for burning and minting processes
+            record.sourceIds[record.sourceIndex] = uint256(
+                uint160(sources[record.sourceIndex].source)
+            );
+
+            // Add the withdrawn amount for the current source delegatee in the record for burning and minting processes
+            record.withdrawnAmounts[record.sourceIndex] = sources[
+                record.sourceIndex
+            ].amount;
+
+            // Move to the next source delegatee
+            record.sourceIndex++;
+        }
     }
 
     /**
