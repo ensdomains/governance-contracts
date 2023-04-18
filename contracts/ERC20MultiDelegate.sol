@@ -31,9 +31,26 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         uint256 amount;
     }
 
-    struct SourceTargetDelegatee {
+    struct SourceAmount {
         address source;
+        uint256 amount;
+    }
+
+    struct TargetAmount {
         address target;
+        uint256 amount;
+    }
+
+    struct ReDepositRecord {
+        uint256[] sourceIds;
+        uint256[] targetIds;
+        uint256[] withdrawnAmounts;
+        uint256[] redepositedAmounts;
+        uint256 sourceIndex;
+        uint256 targetIndex;
+        uint256 remainingSourceAmount;
+        uint256 remainingTargetAmount;
+        uint256 totalRedepositedAmount;
     }
 
     /**
@@ -79,38 +96,167 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     }
 
     /**
-    * @dev Re-delegates voting power between delegatees.
-    * @param delegateePairs The list of current delegatee addresses (from which the voting power is withdrawn) 
-    * and target delegatee addresses (which the voting power will be delegated).
-    */
-    function reDeposit(SourceTargetDelegatee[] calldata delegateePairs) external {
-        uint256 delegateePairsLength = delegateePairs.length;
+     * @dev Re-delegates voting power between delegatees.
+     * @param sources The list of source delegatee addresses and amounts to withdraw.
+     * @param targets The list of target delegatee addresses and amounts to redeposit.
+     * The remaning part if any, will be withdrawn to the user account
+     */
+    function reDeposit(
+        SourceAmount[] calldata sources,
+        TargetAmount[] calldata targets
+    ) external {
+        uint256 sourcesLength = sources.length;
+        uint256 targetsLength = targets.length;
 
         require(
-            delegateePairsLength > 0,
-            "ReDeposit: You should pick at least one source and target delegatee pair"
+            sourcesLength > 0 && targetsLength > 0,
+            "ReDeposit: You should pick at least one source and one target delegatee"
         );
 
-        uint256[] memory sourceIds = new uint256[](delegateePairsLength);
-        uint256[] memory targetIds = new uint256[](delegateePairsLength);
-        uint256[] memory amounts = new uint256[](delegateePairsLength);
+        ReDepositRecord memory record = ReDepositRecord({
+            sourceIds: new uint256[](sourcesLength),
+            targetIds: new uint256[](targetsLength),
+            withdrawnAmounts: new uint256[](sourcesLength),
+            redepositedAmounts: new uint256[](targetsLength),
+            sourceIndex: 0,
+            targetIndex: 0,
+            remainingSourceAmount: sources[0].amount,
+            remainingTargetAmount: targets[0].amount,
+            totalRedepositedAmount: 0
+        });
 
-        for (uint index = 0; index < delegateePairsLength; index++) {
-            address from = delegateePairs[index].source;
-            address to = delegateePairs[index].target;
+        _reDeposit(sources, targets, record);
 
-            uint256 amount = getBalanceForDelegatee(from);
-            sourceIds[index] = uint256(uint160(from));
-            targetIds[index] = uint256(uint160(to));
-            amounts[index] = amount;
-
-            transferBetweenDelegators(from, to, amount);
-
-            deployProxyDelegatorIfNeeded(to);
+        // Reimburse remaining amount to the owner
+        if (record.remainingSourceAmount > 0) {
+            transferBetweenDelegators(
+                sources[sourcesLength - 1].source,
+                msg.sender,
+                record.remainingSourceAmount
+            );
+            record.totalRedepositedAmount += record.remainingSourceAmount;
+            record.sourceIds[record.sourceIndex] = uint256(
+                uint160(sources[record.sourceIndex].source)
+            );
+            record.withdrawnAmounts[record.sourceIndex] = sources[
+                record.sourceIndex
+            ].amount;
         }
 
-        burnBatch(msg.sender, sourceIds, amounts);
-        mintBatch(msg.sender, targetIds, amounts);
+        burnBatch(msg.sender, record.sourceIds, record.withdrawnAmounts);
+        mintBatch(msg.sender, record.targetIds, record.redepositedAmounts);
+    }
+
+    /**
+     * @dev Executes the re-deposit process for multiple source and target delegatees.
+     * @param sources The list of source delegatees with the amounts to withdraw.
+     * @param targets The list of target delegatees with the amounts to re-deposit.
+     * @param record The current state of the re-deposit process.
+     */
+    function _reDeposit(
+        SourceAmount[] calldata sources,
+        TargetAmount[] calldata targets,
+        ReDepositRecord memory record
+    ) internal {
+        uint256 sourcesLength = sources.length;
+        uint256 targetsLength = targets.length;
+
+        // Iterate until all source and target delegatees have been processed.
+        while (
+            record.sourceIndex < sourcesLength &&
+            record.targetIndex < targetsLength
+        ) {
+            // Process the re-deposit between the current source and target delegatee pair.
+            uint256 transferAmount = _processReDeposit(
+                sources,
+                targets,
+                record
+            );
+
+            // Update the remaining amounts for the current source and target delegatees.
+            record.remainingSourceAmount -= transferAmount;
+            record.remainingTargetAmount -= transferAmount;
+
+            // Update the total amounts for withdrawn and redeposited tokens.
+            record.totalRedepositedAmount += transferAmount;
+
+            // If the current source delegatee has no remaining amount to withdraw,
+            // store its ID and the withdrawn amount, and move to the next source delegatee.
+            if (record.remainingSourceAmount == 0) {
+                record.sourceIds[record.sourceIndex] = uint256(
+                    uint160(sources[record.sourceIndex].source)
+                );
+                record.withdrawnAmounts[record.sourceIndex] = sources[
+                    record.sourceIndex
+                ].amount;
+                record.sourceIndex++;
+
+                if (record.sourceIndex < sourcesLength) {
+                    record.remainingSourceAmount = sources[record.sourceIndex]
+                        .amount;
+                }
+            }
+
+            // If the current target delegatee has no remaining amount to re-deposit,
+            // store its ID and the redeposited amount, and move to the next target delegatee.
+            if (record.remainingTargetAmount == 0) {
+                record.targetIds[record.targetIndex] = uint256(
+                    uint160(targets[record.targetIndex].target)
+                );
+                record.redepositedAmounts[record.targetIndex] = targets[
+                    record.targetIndex
+                ].amount;
+                record.targetIndex++;
+
+                if (record.targetIndex < targetsLength) {
+                    record.remainingTargetAmount = targets[record.targetIndex]
+                        .amount;
+                }
+            }
+        }
+    }
+
+    /**
+     * @dev Processes the re-deposit between a source and a target.
+     * @param sources The list of source delegatees with the amounts to withdraw.
+     * @param targets The list of target delegatees with the amounts to re-deposit.
+     * @param record The current state of the re-deposit process.
+     * @return transferAmount The amount of tokens transferred between the current source and target delegatees.
+     */
+    function _processReDeposit(
+        SourceAmount[] calldata sources,
+        TargetAmount[] calldata targets,
+        ReDepositRecord memory record
+    ) internal returns (uint256 transferAmount) {
+        // Get the balance of the current source delegatee.
+        uint256 balance = getBalanceForDelegatee(
+            sources[record.sourceIndex].source
+        );
+
+        // Ensure that the remaining amount to withdraw from the source delegatee is not greater than the balance.
+        require(
+            record.remainingSourceAmount <= balance,
+            "ReDeposit: Insufficient balance in the source delegatee"
+        );
+
+        // Determine the transfer amount as the minimum between the remaining amounts of source and target delegatees.
+        transferAmount = (record.remainingSourceAmount <
+            record.remainingTargetAmount)
+            ? record.remainingSourceAmount
+            : record.remainingTargetAmount;
+
+        // Transfer the determined amount between the current source and target delegatees.
+        transferBetweenDelegators(
+            sources[record.sourceIndex].source,
+            targets[record.targetIndex].target,
+            transferAmount
+        );
+
+        // Deploy a proxy delegator for the target delegatee if it does not already exist.
+        deployProxyDelegatorIfNeeded(targets[record.targetIndex].target);
+
+        // Return the transfer amount.
+        return transferAmount;
     }
 
     /**
@@ -134,7 +280,10 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             delegates[index] = uint256(uint160(delegatee));
             amounts[index] = amount;
 
-            address proxyAddress = getProxyContractAddress(delegatee);
+            (address proxyAddress, ) = retrieveProxyContractAddress(
+                token,
+                delegatee
+            );
             transferVotingPower(proxyAddress, msg.sender, amount);
         }
 
@@ -158,8 +307,11 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address to,
         uint256 amount
     ) internal {
-        address proxyAddressFrom = getProxyContractAddress(from);
-        address proxyAddressTo = getProxyContractAddress(to);
+        (address proxyAddressFrom, ) = retrieveProxyContractAddress(
+            token,
+            from
+        );
+        (address proxyAddressTo, ) = retrieveProxyContractAddress(token, to);
         token.transferFrom(proxyAddressFrom, proxyAddressTo, amount);
     }
 
@@ -178,16 +330,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address delegatee
     ) internal view returns (uint256) {
         return ERC1155(this).balanceOf(msg.sender, uint256(uint160(delegatee)));
-    }
-
-    function getProxyContractAddress(
-        address delegatee
-    ) internal view returns (address) {
-        (address proxyAddress, ) = retrieveProxyContractAddress(
-            token,
-            delegatee
-        );
-        return proxyAddress;
     }
 
     function transferVotingPower(
