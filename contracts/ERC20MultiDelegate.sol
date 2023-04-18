@@ -127,6 +127,11 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
         _reDeposit(sources, targets, record);
 
+        require(
+            record.remainingTargetAmount == 0, 
+            "ReDeposit: Total target amount cannot be greater than source amount"
+        );
+
         // Reimburse remaining amount to the owner
         if (record.remainingSourceAmount > 0) {
             transferBetweenDelegators(
@@ -261,30 +266,37 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
     /**
      * @dev Withdraws delegated ERC20 voting power from proxy delegators to the actual delegator
-     * @param delegatees List of delegatee addresses
+     * @param withdrawals List of DelegateeAmount structs containing delegatee addresses and withdrawal amounts
      */
-    function withdrawMulti(address[] calldata delegatees) external {
-        uint256 delegateesLength = delegatees.length;
+    function withdrawMulti(DelegateeAmount[] calldata withdrawals) external {
+        uint256 withdrawalsLength = withdrawals.length;
 
         require(
-            delegateesLength > 0,
-            "WithdrawMulti: You should pick at least one delegatee"
+            withdrawalsLength > 0,
+            "WithdrawMulti: You should provide at least one withdrawal request"
         );
 
-        uint256[] memory delegates = new uint256[](delegateesLength);
-        uint256[] memory amounts = new uint256[](delegateesLength);
+        uint256[] memory delegates = new uint256[](withdrawalsLength);
+        uint256[] memory amounts = new uint256[](withdrawalsLength);
 
-        for (uint256 index = 0; index < delegateesLength; index++) {
-            address delegatee = delegatees[index];
-            uint256 amount = getBalanceForDelegatee(delegatee);
+        for (uint256 index = 0; index < withdrawalsLength; index++) {
+            address delegatee = withdrawals[index].delegatee;
+            uint256 requestedAmount = withdrawals[index].amount;
+            uint256 delegateeBalance = getBalanceForDelegatee(delegatee);
+
+            require(
+                requestedAmount <= delegateeBalance,
+                "WithdrawMulti: Requested amount exceeds delegatee balance"
+            );
+
             delegates[index] = uint256(uint160(delegatee));
-            amounts[index] = amount;
+            amounts[index] = requestedAmount;
 
             (address proxyAddress, ) = retrieveProxyContractAddress(
                 token,
                 delegatee
             );
-            transferVotingPower(proxyAddress, msg.sender, amount);
+            transferVotingPower(proxyAddress, msg.sender, requestedAmount);
         }
 
         burnBatch(msg.sender, delegates, amounts);
