@@ -307,6 +307,80 @@ describe('ENS Multi Delegate', () => {
       );
     });
 
+    it('contract should be able to re-delegate to already delegated delegatees', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+      // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
+
+      // give allowance to multi delegate contract
+      await token.approve(multiDelegate.address, delegatorTokenAmount);
+      // delegate multiple delegatees
+      const delegatees = [deployer, alice];
+
+      const delegateeAmountArray = delegatees.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(delegatees.length),
+      ]);
+
+      await multiDelegate.depositMulti(delegateeAmountArray);
+
+      const delegatorTokenAmountAfter = await token.balanceOf(deployer);
+      expect(delegatorTokenAmountAfter.toString()).to.equal('0');
+
+      // delegatee must have 1/2 of the votes the delegator delegated
+      const votesOfDelegatee = await token.getVotes(alice);
+      expect(votesOfDelegatee.toString()).to.equal(
+        delegatorTokenAmount.div(delegatees.length).toString()
+      );
+
+      for (let delegateTokenId of delegatees) {
+        let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
+        expect(balance.toString()).to.equal(
+          delegatorTokenAmount.div(delegatees.length).toString()
+        );
+      }
+
+      const newDelegatees = [bob, charlie];
+
+      const sourceDelegateeArray = delegatees.map((oldDelegatee, index) => [
+        oldDelegatee,
+        delegatorTokenAmount.div(delegatees.length),
+      ]);
+
+      const targetDelegateeArray = newDelegatees.map((newDelegatee, index) => [
+        newDelegatee,
+        delegatorTokenAmount.div(newDelegatees.length),
+      ]);
+
+      await multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray);
+
+      for (let delegateTokenId of delegatees) {
+        let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
+        expect(balance.toString()).to.equal('0');
+      }
+
+      for (let delegateTokenId of newDelegatees) {
+        let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
+        expect(balance.toString()).to.equal(
+          delegatorTokenAmount.div(delegatees.length).toString()
+        );
+      }
+
+      // delegatee must have 1/2 of the votes the delegator delegated
+      const votesOfNewDelegatee = await token.getVotes(charlie);
+      expect(votesOfNewDelegatee.toString()).to.equal(
+        delegatorTokenAmount.div(newDelegatees.length).toString()
+      );
+
+      // revert re-reposit
+      await multiDelegate.reDeposit(targetDelegateeArray, sourceDelegateeArray);
+
+      // delegatee must have 1/2 of the votes the delegator delegated
+      const votesOfOldDelegatee = await token.getVotes(alice);
+      expect(votesOfOldDelegatee.toString()).to.equal(
+        delegatorTokenAmount.div(delegatees.length).toString()
+      );
+    });
+
     it('contract should revert if target amount is higher than source amount', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
       // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
@@ -337,12 +411,13 @@ describe('ENS Multi Delegate', () => {
 
       await expect(
         multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
-      ).to.be.revertedWith('ReDeposit: Total target amount cannot be greater than source amount');
+      ).to.be.revertedWith(
+        'ReDeposit: Total target amount cannot be greater than source amount'
+      );
     });
 
     it('contract should revert if at least one source address is not delegatee of the caller', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
-      // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
@@ -357,7 +432,7 @@ describe('ENS Multi Delegate', () => {
       await multiDelegate.depositMulti(delegateeAmountArray);
 
       const wrongDelegateeList = [charlie, alice];
-      const newDelegateeList = [ bob ];
+      const newDelegateeList = [bob];
 
       const sourceDelegateeArray = wrongDelegateeList.map((delegatee) => [
         delegatee,
@@ -371,7 +446,55 @@ describe('ENS Multi Delegate', () => {
 
       await expect(
         multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
-      ).to.be.revertedWith('ReDeposit: Insufficient balance in the source delegatee');
+      ).to.be.revertedWith(
+        'ReDeposit: Insufficient balance in the source delegatee'
+      );
+    });
+
+    it('contract should revert if no source provided', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+
+      const sourceDelegateeList = [];
+      const targetDelegateeList = [bob];
+
+      const sourceDelegateeArray = sourceDelegateeList.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(sourceDelegateeList.length),
+      ]);
+
+      const targetDelegateeArray = targetDelegateeList.map((newDelegatee) => [
+        newDelegatee,
+        delegatorTokenAmount.div(targetDelegateeList.length),
+      ]);
+
+      await expect(
+        multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
+      ).to.be.revertedWith(
+        'ReDeposit: You should pick at least one source and one target delegatee'
+      );
+    });
+
+    it('contract should revert if no target provided', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+
+      const sourceDelegateeList = [bob];
+      const targetDelegateeList = [];
+
+      const sourceDelegateeArray = sourceDelegateeList.map((delegatee) => [
+        delegatee,
+        delegatorTokenAmount.div(sourceDelegateeList.length),
+      ]);
+
+      const targetDelegateeArray = targetDelegateeList.map((newDelegatee) => [
+        newDelegatee,
+        delegatorTokenAmount.div(targetDelegateeList.length),
+      ]);
+
+      await expect(
+        multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
+      ).to.be.revertedWith(
+        'ReDeposit: You should pick at least one source and one target delegatee'
+      );
     });
   });
 
@@ -430,7 +553,9 @@ describe('ENS Multi Delegate', () => {
 
       await expect(
         multiDelegate.withdrawMulti(delegateeWithdrawAmountArray)
-      ).to.be.revertedWith('WithdrawMulti: Requested amount exceeds delegatee balance');
+      ).to.be.revertedWith(
+        'WithdrawMulti: Requested amount exceeds delegatee balance'
+      );
     });
 
     it('contract should fail to withdraw if delegatee was not delegated', async () => {
@@ -451,14 +576,27 @@ describe('ENS Multi Delegate', () => {
 
       const wrongDelegateeList = [deployer, alice, bob, dave];
 
-      const delegateeWithdrawAmountArray = wrongDelegateeList.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(wrongDelegateeList.length),
-      ]);
+      const delegateeWithdrawAmountArray = wrongDelegateeList.map(
+        (delegatee) => [
+          delegatee,
+          delegatorTokenAmount.div(wrongDelegateeList.length),
+        ]
+      );
 
       await expect(
         multiDelegate.withdrawMulti(delegateeWithdrawAmountArray)
-      ).to.be.revertedWith('WithdrawMulti: Requested amount exceeds delegatee balance');
+      ).to.be.revertedWith(
+        'WithdrawMulti: Requested amount exceeds delegatee balance'
+      );
+    });
+
+    it('contract should revert if no withdrawal request provided', async () => {
+
+      await expect(
+        multiDelegate.withdrawMulti([])
+      ).to.be.revertedWith(
+        'WithdrawMulti: You should provide at least one withdrawal request'
+      );
     });
   });
 
@@ -493,6 +631,22 @@ describe('ENS Multi Delegate', () => {
       await expect(
         multiDelegate.depositMulti(delegateeAmountArray)
       ).to.be.revertedWith('ERC20: insufficient allowance');
+    });
+  });
+
+  describe('metadata uri', () => {
+    it('deployer should be able to update metadata uri', async () => {
+      const newURI = 'http://localhost:8081';
+      await multiDelegate.setUri(newURI);
+      expect(multiDelegate.uri, newURI);
+    });
+
+    it('others should not be able to update metadata uri', async () => {
+      const newURI = 'http://localhost:8081';
+      const [_, secondDelegator] = await ethers.getSigners();
+      await expect(multiDelegate.connect(secondDelegator).setUri(newURI)).to.be.revertedWith(
+        'Ownable: caller is not the owner'
+      );
     });
   });
 });

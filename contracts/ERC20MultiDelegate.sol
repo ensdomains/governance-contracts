@@ -31,16 +31,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         uint256 amount;
     }
 
-    struct SourceAmount {
-        address source;
-        uint256 amount;
-    }
-
-    struct TargetAmount {
-        address target;
-        uint256 amount;
-    }
-
     struct ReDepositRecord {
         uint256[] sourceIds;
         uint256[] targetIds;
@@ -102,8 +92,8 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * The remaning part if any, will be withdrawn to the user account
      */
     function reDeposit(
-        SourceAmount[] calldata sources,
-        TargetAmount[] calldata targets
+        DelegateeAmount[] calldata sources,
+        DelegateeAmount[] calldata targets
     ) external {
         uint256 sourcesLength = sources.length;
         uint256 targetsLength = targets.length;
@@ -148,8 +138,8 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * @param record The current state of the re-deposit process.
      */
     function _reDeposit(
-        SourceAmount[] calldata sources,
-        TargetAmount[] calldata targets,
+        DelegateeAmount[] calldata sources,
+        DelegateeAmount[] calldata targets,
         ReDepositRecord memory record
     ) internal {
         uint256 sourcesLength = sources.length;
@@ -178,7 +168,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             // store its ID and the withdrawn amount, and move to the next source delegatee.
             if (record.remainingSourceAmount == 0) {
                 record.sourceIds[record.sourceIndex] = uint256(
-                    uint160(sources[record.sourceIndex].source)
+                    uint160(sources[record.sourceIndex].delegatee)
                 );
                 record.withdrawnAmounts[record.sourceIndex] = sources[
                     record.sourceIndex
@@ -195,7 +185,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             // store its ID and the redeposited amount, and move to the next target delegatee.
             if (record.remainingTargetAmount == 0) {
                 record.targetIds[record.targetIndex] = uint256(
-                    uint160(targets[record.targetIndex].target)
+                    uint160(targets[record.targetIndex].delegatee)
                 );
                 record.redepositedAmounts[record.targetIndex] = targets[
                     record.targetIndex
@@ -218,13 +208,13 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * @return transferAmount The amount of tokens transferred between the current source and target delegatees.
      */
     function _processReDeposit(
-        SourceAmount[] calldata sources,
-        TargetAmount[] calldata targets,
+        DelegateeAmount[] calldata sources,
+        DelegateeAmount[] calldata targets,
         ReDepositRecord memory record
     ) internal returns (uint256 transferAmount) {
         // Get the balance of the current source delegatee.
         uint256 balance = getBalanceForDelegatee(
-            sources[record.sourceIndex].source
+            sources[record.sourceIndex].delegatee
         );
 
         // Ensure that the remaining amount to withdraw from the source delegatee is not greater than the balance.
@@ -241,13 +231,13 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
         // Transfer the determined amount between the current source and target delegatees.
         transferBetweenDelegators(
-            sources[record.sourceIndex].source,
-            targets[record.targetIndex].target,
+            sources[record.sourceIndex].delegatee,
+            targets[record.targetIndex].delegatee,
             transferAmount
         );
 
         // Deploy a proxy delegator for the target delegatee if it does not already exist.
-        deployProxyDelegatorIfNeeded(targets[record.targetIndex].target);
+        deployProxyDelegatorIfNeeded(targets[record.targetIndex].delegatee);
 
         // Return the transfer amount.
         return transferAmount;
@@ -262,7 +252,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      */
     function _reimburse(
         ReDepositRecord memory record,
-        SourceAmount[] memory sources,
+        DelegateeAmount[] memory sources,
         uint256 sourcesLength,
         address delegator
     ) internal {
@@ -271,7 +261,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             // Transfer the remaining source amount or the full source amount 
             // (if no remaining amount) to the delegator
             transferBetweenDelegators(
-                sources[record.sourceIndex].source,
+                sources[record.sourceIndex].delegatee,
                 delegator,
                 record.remainingSourceAmount > 0
                     ? record.remainingSourceAmount
@@ -280,7 +270,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
             // Add the source delegatee ID to the record for burning and minting processes
             record.sourceIds[record.sourceIndex] = uint256(
-                uint160(sources[record.sourceIndex].source)
+                uint160(sources[record.sourceIndex].delegatee)
             );
 
             // Add the withdrawn amount for the current source delegatee in the record for burning and minting processes
@@ -438,7 +428,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address _delegatee
     ) private view returns (address, bytes32) {
         bytes memory bytecode = getBytecode(_token, _delegatee);
-        bytes32 salt = keccak256(abi.encode(_delegatee));
+        bytes32 salt = 0;
         return (getContractAddress(bytecode, uint256(salt)), salt);
     }
 }
