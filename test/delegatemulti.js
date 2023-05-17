@@ -68,21 +68,21 @@ describe('ENS Multi Delegate', () => {
   });
 
   describe('deposit', () => {
-    it('contract should be able to delegate multiple delegatees in behalf of user', async () => {
+    it('contract should be able to delegate multiple delegates in behalf of user', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
       // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
-      // delegate multiple delegatees
-      const delegatees = [deployer, alice, bob, charlie];
+      // delegate multiple delegates
+      const delegates = [deployer, alice, bob, charlie];
 
-      const delegateeAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const delegateAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeAmountArray);
+      await multiDelegate.depositMulti(delegateAmountArray);
 
       const delegatorTokenAmountAfter = await token.balanceOf(deployer);
       expect(delegatorTokenAmountAfter.toString()).to.equal('0');
@@ -90,43 +90,43 @@ describe('ENS Multi Delegate', () => {
       // delegator must have 1/4 of the votes the delegator delegated
       const votesOfDelegator = await token.getVotes(deployer);
       expect(votesOfDelegator.toString()).to.equal(
-        delegatorTokenAmount.div(delegatees.length).toString()
+        delegatorTokenAmount.div(delegates.length).toString()
       );
 
-      // delegatee must have 1/4 of the votes the delegator delegated
-      const votesOfDelegatee = await token.getVotes(alice);
-      expect(votesOfDelegatee.toString()).to.equal(
-        delegatorTokenAmount.div(delegatees.length).toString()
+      // delegate must have 1/4 of the votes the delegator delegated
+      const votesOfDelegate = await token.getVotes(alice);
+      expect(votesOfDelegate.toString()).to.equal(
+        delegatorTokenAmount.div(delegates.length).toString()
       );
 
-      for (let delegateTokenId of delegatees) {
+      for (let delegateTokenId of delegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal(
-          delegatorTokenAmount.div(delegatees.length).toString()
+          delegatorTokenAmount.div(delegates.length).toString()
         );
       }
 
-      await multiDelegate.withdrawMulti(delegateeAmountArray);
+      await multiDelegate.withdrawMulti(delegateAmountArray);
 
-      for (let delegateTokenId of delegatees) {
+      for (let delegateTokenId of delegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal('0');
       }
     });
 
-    it('contract should be able to delegate to already delegated delegatees', async () => {
+    it('contract should be able to delegate to already delegated delegates', async () => {
       const firstDelegatorBalance = await token.balanceOf(deployer);
 
       // Give allowance to multiDelegate contract
       await token.approve(multiDelegate.address, firstDelegatorBalance);
 
-      const delegateeList = [alice, bob];
-      const delegateeAmounts = delegateeList.map((delegatee) => [
-        delegatee,
-        firstDelegatorBalance.div(delegateeList.length),
+      const delegateList = [alice, bob];
+      const delegateAmounts = delegateList.map((delegate) => [
+        delegate,
+        firstDelegatorBalance.div(delegateList.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeAmounts);
+      await multiDelegate.depositMulti(delegateAmounts);
 
       const [_, secondDelegator] = await ethers.getSigners();
       const secondDelegatorBalance = await token.balanceOf(
@@ -137,14 +137,14 @@ describe('ENS Multi Delegate', () => {
         .connect(secondDelegator)
         .approve(multiDelegate.address, secondDelegatorBalance);
 
-      const delegateeAmountsForSecondary = delegateeList.map((delegatee) => [
-        delegatee,
-        secondDelegatorBalance.div(delegateeList.length),
+      const delegateAmountsForSecondary = delegateList.map((delegate) => [
+        delegate,
+        secondDelegatorBalance.div(delegateList.length),
       ]);
 
       await multiDelegate
         .connect(secondDelegator)
-        .depositMulti(delegateeAmountsForSecondary);
+        .depositMulti(delegateAmountsForSecondary);
 
       const secondDelegatorBalanceAfter = await token.balanceOf(
         secondDelegator.address
@@ -154,230 +154,230 @@ describe('ENS Multi Delegate', () => {
       const votesOfDelegator = await token.getVotes(alice);
       expect(votesOfDelegator.toString()).to.equal(
         firstDelegatorBalance
-          .div(delegateeList.length)
-          .add(secondDelegatorBalance.div(delegateeList.length))
+          .div(delegateList.length)
+          .add(secondDelegatorBalance.div(delegateList.length))
           .toString()
       );
     });
 
-    it('contract should revert if no delegatee provided', async () => {
+    it('contract should revert if no delegate provided', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
 
-      const delegatees = [];
-      const delegateeAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const delegates = [];
+      const delegateAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
       await expect(
-        multiDelegate.depositMulti(delegateeAmountArray)
-      ).to.be.revertedWith('You should pick at least one delegatee');
+        multiDelegate.depositMulti(delegateAmountArray)
+      ).to.be.revertedWith('You should pick at least one delegate');
     });
   });
 
   describe('re-deposit', () => {
-    it('contract should be able to re-delegate multiple delegatees in behalf of user 1:1', async () => {
+    it('contract should be able to re-delegate multiple delegates in behalf of user 1:1', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
       // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
-      // delegate multiple delegatees
-      const delegatees = [deployer, alice];
+      // delegate multiple delegates
+      const delegates = [deployer, alice];
 
-      const delegateeAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const delegateAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeAmountArray);
+      await multiDelegate.depositMulti(delegateAmountArray);
 
       const delegatorTokenAmountAfter = await token.balanceOf(deployer);
       expect(delegatorTokenAmountAfter.toString()).to.equal('0');
 
-      // delegatee must have 1/2 of the votes the delegator delegated
-      const votesOfDelegatee = await token.getVotes(alice);
-      expect(votesOfDelegatee.toString()).to.equal(
-        delegatorTokenAmount.div(delegatees.length).toString()
+      // delegate must have 1/2 of the votes the delegator delegated
+      const votesOfDelegate = await token.getVotes(alice);
+      expect(votesOfDelegate.toString()).to.equal(
+        delegatorTokenAmount.div(delegates.length).toString()
       );
 
-      for (let delegateTokenId of delegatees) {
+      for (let delegateTokenId of delegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal(
-          delegatorTokenAmount.div(delegatees.length).toString()
+          delegatorTokenAmount.div(delegates.length).toString()
         );
       }
 
-      const newDelegatees = [bob, charlie];
+      const newDelegates = [bob, charlie];
 
-      const sourceDelegateeArray = delegatees.map((oldDelegatee, index) => [
-        oldDelegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const sourceDelegateArray = delegates.map((oldDelegate, index) => [
+        oldDelegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
-      const targetDelegateeArray = newDelegatees.map((newDelegatee, index) => [
-        newDelegatee,
-        delegatorTokenAmount.div(newDelegatees.length),
+      const targetDelegateArray = newDelegates.map((newDelegate, index) => [
+        newDelegate,
+        delegatorTokenAmount.div(newDelegates.length),
       ]);
 
-      await multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray);
+      await multiDelegate.reDeposit(sourceDelegateArray, targetDelegateArray);
 
-      for (let delegateTokenId of delegatees) {
+      for (let delegateTokenId of delegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal('0');
       }
 
-      for (let delegateTokenId of newDelegatees) {
+      for (let delegateTokenId of newDelegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal(
-          delegatorTokenAmount.div(delegatees.length).toString()
+          delegatorTokenAmount.div(delegates.length).toString()
         );
       }
 
-      // delegatee must have 1/2 of the votes the delegator delegated
-      const votesOfNewDelegatee = await token.getVotes(charlie);
-      expect(votesOfNewDelegatee.toString()).to.equal(
-        delegatorTokenAmount.div(newDelegatees.length).toString()
+      // delegate must have 1/2 of the votes the delegator delegated
+      const votesOfNewDelegate = await token.getVotes(charlie);
+      expect(votesOfNewDelegate.toString()).to.equal(
+        delegatorTokenAmount.div(newDelegates.length).toString()
       );
     });
 
-    it('contract should be able to re-delegate multiple delegatees in behalf of user many:many', async () => {
+    it('contract should be able to re-delegate multiple delegates in behalf of user many:many', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
       // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
-      // delegate multiple delegatees
-      const delegatees = [deployer, alice];
+      // delegate multiple delegates
+      const delegates = [deployer, alice];
 
-      const delegateeAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const delegateAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeAmountArray);
+      await multiDelegate.depositMulti(delegateAmountArray);
 
       const delegatorTokenAmountAfter = await token.balanceOf(deployer);
       expect(delegatorTokenAmountAfter.toString()).to.equal('0');
 
-      // delegatee must have 1/2 of the votes the delegator delegated
-      const votesOfDelegatee = await token.getVotes(alice);
-      expect(votesOfDelegatee.toString()).to.equal(
-        delegatorTokenAmount.div(delegatees.length).toString()
+      // delegate must have 1/2 of the votes the delegator delegated
+      const votesOfDelegate = await token.getVotes(alice);
+      expect(votesOfDelegate.toString()).to.equal(
+        delegatorTokenAmount.div(delegates.length).toString()
       );
 
-      for (let delegateTokenId of delegatees) {
+      for (let delegateTokenId of delegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal(
-          delegatorTokenAmount.div(delegatees.length).toString()
+          delegatorTokenAmount.div(delegates.length).toString()
         );
       }
 
-      const newDelegatees = [bob, charlie, dave];
+      const newDelegates = [bob, charlie, dave];
 
-      const sourceDelegateeArray = delegatees.map((oldDelegatee) => [
-        oldDelegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const sourceDelegateArray = delegates.map((oldDelegate) => [
+        oldDelegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
-      const targetDelegateeArray = newDelegatees.map((newDelegatee) => [
-        newDelegatee,
-        delegatorTokenAmount.div(newDelegatees.length),
+      const targetDelegateArray = newDelegates.map((newDelegate) => [
+        newDelegate,
+        delegatorTokenAmount.div(newDelegates.length),
       ]);
 
-      await multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray);
+      await multiDelegate.reDeposit(sourceDelegateArray, targetDelegateArray);
 
-      for (let delegateTokenId of delegatees) {
+      for (let delegateTokenId of delegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal('0');
       }
 
-      for (let delegateTokenId of newDelegatees) {
+      for (let delegateTokenId of newDelegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal(
-          delegatorTokenAmount.div(newDelegatees.length).toString()
+          delegatorTokenAmount.div(newDelegates.length).toString()
         );
       }
 
-      const votesOfNewDelegatee = await token.getVotes(charlie);
-      expect(votesOfNewDelegatee.toString()).to.equal(
-        delegatorTokenAmount.div(newDelegatees.length).toString()
+      const votesOfNewDelegate = await token.getVotes(charlie);
+      expect(votesOfNewDelegate.toString()).to.equal(
+        delegatorTokenAmount.div(newDelegates.length).toString()
       );
     });
 
-    it('contract should be able to re-delegate to already delegated delegatees', async () => {
+    it('contract should be able to re-delegate to already delegated delegates', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
       // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
-      // delegate multiple delegatees
-      const delegatees = [deployer, alice];
+      // delegate multiple delegates
+      const delegates = [deployer, alice];
 
-      const delegateeAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const delegateAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeAmountArray);
+      await multiDelegate.depositMulti(delegateAmountArray);
 
       const delegatorTokenAmountAfter = await token.balanceOf(deployer);
       expect(delegatorTokenAmountAfter.toString()).to.equal('0');
 
-      // delegatee must have 1/2 of the votes the delegator delegated
-      const votesOfDelegatee = await token.getVotes(alice);
-      expect(votesOfDelegatee.toString()).to.equal(
-        delegatorTokenAmount.div(delegatees.length).toString()
+      // delegate must have 1/2 of the votes the delegator delegated
+      const votesOfDelegate = await token.getVotes(alice);
+      expect(votesOfDelegate.toString()).to.equal(
+        delegatorTokenAmount.div(delegates.length).toString()
       );
 
-      for (let delegateTokenId of delegatees) {
+      for (let delegateTokenId of delegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal(
-          delegatorTokenAmount.div(delegatees.length).toString()
+          delegatorTokenAmount.div(delegates.length).toString()
         );
       }
 
-      const newDelegatees = [bob, charlie];
+      const newDelegates = [bob, charlie];
 
-      const sourceDelegateeArray = delegatees.map((oldDelegatee, index) => [
-        oldDelegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const sourceDelegateArray = delegates.map((oldDelegate, index) => [
+        oldDelegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
-      const targetDelegateeArray = newDelegatees.map((newDelegatee, index) => [
-        newDelegatee,
-        delegatorTokenAmount.div(newDelegatees.length),
+      const targetDelegateArray = newDelegates.map((newDelegate, index) => [
+        newDelegate,
+        delegatorTokenAmount.div(newDelegates.length),
       ]);
 
-      await multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray);
+      await multiDelegate.reDeposit(sourceDelegateArray, targetDelegateArray);
 
-      for (let delegateTokenId of delegatees) {
+      for (let delegateTokenId of delegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal('0');
       }
 
-      for (let delegateTokenId of newDelegatees) {
+      for (let delegateTokenId of newDelegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal(
-          delegatorTokenAmount.div(delegatees.length).toString()
+          delegatorTokenAmount.div(delegates.length).toString()
         );
       }
 
-      // delegatee must have 1/2 of the votes the delegator delegated
-      const votesOfNewDelegatee = await token.getVotes(charlie);
-      expect(votesOfNewDelegatee.toString()).to.equal(
-        delegatorTokenAmount.div(newDelegatees.length).toString()
+      // delegate must have 1/2 of the votes the delegator delegated
+      const votesOfNewDelegate = await token.getVotes(charlie);
+      expect(votesOfNewDelegate.toString()).to.equal(
+        delegatorTokenAmount.div(newDelegates.length).toString()
       );
 
       // revert re-reposit
-      await multiDelegate.reDeposit(targetDelegateeArray, sourceDelegateeArray);
+      await multiDelegate.reDeposit(targetDelegateArray, sourceDelegateArray);
 
-      // delegatee must have 1/2 of the votes the delegator delegated
-      const votesOfOldDelegatee = await token.getVotes(alice);
-      expect(votesOfOldDelegatee.toString()).to.equal(
-        delegatorTokenAmount.div(delegatees.length).toString()
+      // delegate must have 1/2 of the votes the delegator delegated
+      const votesOfOldDelegate = await token.getVotes(alice);
+      expect(votesOfOldDelegate.toString()).to.equal(
+        delegatorTokenAmount.div(delegates.length).toString()
       );
     });
 
@@ -387,113 +387,113 @@ describe('ENS Multi Delegate', () => {
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
-      // delegate multiple delegatees
-      const delegatees = [deployer, alice];
+      // delegate multiple delegates
+      const delegates = [deployer, alice];
 
-      const delegateeAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const delegateAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeAmountArray);
+      await multiDelegate.depositMulti(delegateAmountArray);
 
-      const newDelegatees = [bob, charlie, dave];
+      const newDelegates = [bob, charlie, dave];
 
-      const sourceDelegateeArray = delegatees.map((oldDelegatee) => [
-        oldDelegatee,
-        delegatorTokenAmount.div(delegatees.length * 2),
+      const sourceDelegateArray = delegates.map((oldDelegate) => [
+        oldDelegate,
+        delegatorTokenAmount.div(delegates.length * 2),
       ]);
 
-      const targetDelegateeArray = newDelegatees.map((newDelegatee) => [
-        newDelegatee,
-        delegatorTokenAmount.div(newDelegatees.length),
+      const targetDelegateArray = newDelegates.map((newDelegate) => [
+        newDelegate,
+        delegatorTokenAmount.div(newDelegates.length),
       ]);
 
       await expect(
-        multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
+        multiDelegate.reDeposit(sourceDelegateArray, targetDelegateArray)
       ).to.be.revertedWith(
         'ReDeposit: Total target amount cannot be greater than source amount'
       );
     });
 
-    it('contract should revert if at least one source address is not delegatee of the caller', async () => {
+    it('contract should revert if at least one source address is not delegate of the caller', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
-      // delegate multiple delegatees
-      const delegateeList = [deployer, alice];
+      // delegate multiple delegates
+      const delegateList = [deployer, alice];
 
-      const delegateeAmountArray = delegateeList.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegateeList.length),
+      const delegateAmountArray = delegateList.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegateList.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeAmountArray);
+      await multiDelegate.depositMulti(delegateAmountArray);
 
-      const wrongDelegateeList = [charlie, alice];
-      const newDelegateeList = [bob];
+      const wrongDelegateList = [charlie, alice];
+      const newDelegateList = [bob];
 
-      const sourceDelegateeArray = wrongDelegateeList.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(wrongDelegateeList.length),
+      const sourceDelegateArray = wrongDelegateList.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(wrongDelegateList.length),
       ]);
 
-      const targetDelegateeArray = newDelegateeList.map((newDelegatee) => [
-        newDelegatee,
-        delegatorTokenAmount.div(newDelegateeList.length),
+      const targetDelegateArray = newDelegateList.map((newDelegate) => [
+        newDelegate,
+        delegatorTokenAmount.div(newDelegateList.length),
       ]);
 
       await expect(
-        multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
+        multiDelegate.reDeposit(sourceDelegateArray, targetDelegateArray)
       ).to.be.revertedWith(
-        'ReDeposit: Insufficient balance in the source delegatee'
+        'ReDeposit: Insufficient balance in the source delegate'
       );
     });
 
     it('contract should revert if no source provided', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
 
-      const sourceDelegateeList = [];
-      const targetDelegateeList = [bob];
+      const sourceDelegateList = [];
+      const targetDelegateList = [bob];
 
-      const sourceDelegateeArray = sourceDelegateeList.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(sourceDelegateeList.length),
+      const sourceDelegateArray = sourceDelegateList.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(sourceDelegateList.length),
       ]);
 
-      const targetDelegateeArray = targetDelegateeList.map((newDelegatee) => [
-        newDelegatee,
-        delegatorTokenAmount.div(targetDelegateeList.length),
+      const targetDelegateArray = targetDelegateList.map((newDelegate) => [
+        newDelegate,
+        delegatorTokenAmount.div(targetDelegateList.length),
       ]);
 
       await expect(
-        multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
+        multiDelegate.reDeposit(sourceDelegateArray, targetDelegateArray)
       ).to.be.revertedWith(
-        'ReDeposit: You should pick at least one source and one target delegatee'
+        'ReDeposit: You should pick at least one source and one target delegate'
       );
     });
 
     it('contract should revert if no target provided', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
 
-      const sourceDelegateeList = [bob];
-      const targetDelegateeList = [];
+      const sourceDelegateList = [bob];
+      const targetDelegateList = [];
 
-      const sourceDelegateeArray = sourceDelegateeList.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(sourceDelegateeList.length),
+      const sourceDelegateArray = sourceDelegateList.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(sourceDelegateList.length),
       ]);
 
-      const targetDelegateeArray = targetDelegateeList.map((newDelegatee) => [
-        newDelegatee,
-        delegatorTokenAmount.div(targetDelegateeList.length),
+      const targetDelegateArray = targetDelegateList.map((newDelegate) => [
+        newDelegate,
+        delegatorTokenAmount.div(targetDelegateList.length),
       ]);
 
       await expect(
-        multiDelegate.reDeposit(sourceDelegateeArray, targetDelegateeArray)
+        multiDelegate.reDeposit(sourceDelegateArray, targetDelegateArray)
       ).to.be.revertedWith(
-        'ReDeposit: You should pick at least one source and one target delegatee'
+        'ReDeposit: You should pick at least one source and one target delegate'
       );
     });
   });
@@ -505,27 +505,27 @@ describe('ENS Multi Delegate', () => {
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
-      // delegate multiple delegatees
-      const delegatees = [deployer, alice, bob, charlie];
+      // delegate multiple delegates
+      const delegates = [deployer, alice, bob, charlie];
 
-      const delegateeDepositAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const delegateDepositAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeDepositAmountArray);
+      await multiDelegate.depositMulti(delegateDepositAmountArray);
 
-      const delegateeWithdrawAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length * 2),
+      const delegateWithdrawAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length * 2),
       ]);
 
-      await multiDelegate.withdrawMulti(delegateeWithdrawAmountArray);
+      await multiDelegate.withdrawMulti(delegateWithdrawAmountArray);
 
-      for (let delegateTokenId of delegatees) {
+      for (let delegateTokenId of delegates) {
         let balance = await multiDelegate.balanceOf(deployer, delegateTokenId);
         expect(balance.toString()).to.equal(
-          delegatorTokenAmount.div(delegatees.length * 2).toString()
+          delegatorTokenAmount.div(delegates.length * 2).toString()
         );
       }
     });
@@ -536,57 +536,57 @@ describe('ENS Multi Delegate', () => {
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
-      // delegate multiple delegatees
-      const delegateeList = [deployer, alice, bob, charlie];
+      // delegate multiple delegates
+      const delegateList = [deployer, alice, bob, charlie];
 
-      const delegateeDepositAmountArray = delegateeList.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegateeList.length),
+      const delegateDepositAmountArray = delegateList.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegateList.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeDepositAmountArray);
+      await multiDelegate.depositMulti(delegateDepositAmountArray);
 
-      const delegateeWithdrawAmountArray = delegateeList.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegateeList.length / 2),
+      const delegateWithdrawAmountArray = delegateList.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegateList.length / 2),
       ]);
 
       await expect(
-        multiDelegate.withdrawMulti(delegateeWithdrawAmountArray)
+        multiDelegate.withdrawMulti(delegateWithdrawAmountArray)
       ).to.be.revertedWith(
-        'WithdrawMulti: Requested amount exceeds delegatee balance'
+        'WithdrawMulti: Requested amount exceeds delegate balance'
       );
     });
 
-    it('contract should fail to withdraw if delegatee was not delegated', async () => {
+    it('contract should fail to withdraw if delegate was not delegated', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
       // const customAmount = ethers.utils.parseEther('10000000.0'); // ens
 
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, delegatorTokenAmount);
-      // delegate multiple delegatees
-      const delegateeList = [deployer, alice, bob, charlie];
+      // delegate multiple delegates
+      const delegateList = [deployer, alice, bob, charlie];
 
-      const delegateeDepositAmountArray = delegateeList.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegateeList.length),
+      const delegateDepositAmountArray = delegateList.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegateList.length),
       ]);
 
-      await multiDelegate.depositMulti(delegateeDepositAmountArray);
+      await multiDelegate.depositMulti(delegateDepositAmountArray);
 
-      const wrongDelegateeList = [deployer, alice, bob, dave];
+      const wrongDelegateList = [deployer, alice, bob, dave];
 
-      const delegateeWithdrawAmountArray = wrongDelegateeList.map(
-        (delegatee) => [
-          delegatee,
-          delegatorTokenAmount.div(wrongDelegateeList.length),
+      const delegateWithdrawAmountArray = wrongDelegateList.map(
+        (delegate) => [
+          delegate,
+          delegatorTokenAmount.div(wrongDelegateList.length),
         ]
       );
 
       await expect(
-        multiDelegate.withdrawMulti(delegateeWithdrawAmountArray)
+        multiDelegate.withdrawMulti(delegateWithdrawAmountArray)
       ).to.be.revertedWith(
-        'WithdrawMulti: Requested amount exceeds delegatee balance'
+        'WithdrawMulti: Requested amount exceeds delegate balance'
       );
     });
 
@@ -604,15 +604,15 @@ describe('ENS Multi Delegate', () => {
     it('contract should revert if allowance is not provided', async () => {
       const delegatorTokenAmount = await token.balanceOf(deployer);
 
-      const delegatees = [alice];
+      const delegates = [alice];
 
-      const delegateeAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const delegateAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
 
       await expect(
-        multiDelegate.depositMulti(delegateeAmountArray)
+        multiDelegate.depositMulti(delegateAmountArray)
       ).to.be.revertedWith('ERC20: insufficient allowance');
     });
 
@@ -623,13 +623,13 @@ describe('ENS Multi Delegate', () => {
       // give allowance to multi delegate contract
       await token.approve(multiDelegate.address, customAmount);
 
-      const delegatees = [bob];
-      const delegateeAmountArray = delegatees.map((delegatee) => [
-        delegatee,
-        delegatorTokenAmount.div(delegatees.length),
+      const delegates = [bob];
+      const delegateAmountArray = delegates.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(delegates.length),
       ]);
       await expect(
-        multiDelegate.depositMulti(delegateeAmountArray)
+        multiDelegate.depositMulti(delegateAmountArray)
       ).to.be.revertedWith('ERC20: insufficient allowance');
     });
   });
