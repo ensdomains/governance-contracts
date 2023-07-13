@@ -6,6 +6,7 @@ module.exports = async ({getNamedAccounts, deployments}) => {
     from: deployer,
     args: [
         ensToken.address,
+        "http://localhost:8080/delegate/{id}"
     ],
     log: true,
   });

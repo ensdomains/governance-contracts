@@ -26,15 +26,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
     ERC20Votes public token;
 
-    /**
-     * @dev DelegateAmount struct is used to keep track of how much of a delegator's
-     * tokens are being delegated to a particular delegate.
-     */
-    struct DelegateAmount {
-        address delegate; // The address of the delegate.
-        uint256 amount; // The amount of tokens being (un)delegated.
-    }
-
     /** ### EVENTS ### */
 
     event ProxyDeployed(address indexed delegate, address proxyAddress);
@@ -58,19 +49,22 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
     /**
      * @dev Executes the delegation transfer process for multiple source and target delegates.
-     * @param sources The list of source delegates with the amounts to withdraw.
-     * @param targets The list of target delegates with the amounts to deposit.
+     * @param sources The list of source delegates.
+     * @param targets The list of target delegates.
+     * @param amounts The list of amounts to deposit/withdraw.
      */
     function delegateMulti(
-        DelegateAmount[] calldata sources,
-        DelegateAmount[] calldata targets
+        address[] calldata sources,
+        address[] calldata targets,
+        uint256[] calldata amounts
     ) external {
-        _delegateMulti(sources, targets);
+        _delegateMulti(sources, targets, amounts);
     }
 
     function _delegateMulti(
-        DelegateAmount[] calldata sources,
-        DelegateAmount[] calldata targets
+        address[] calldata sources,
+        address[] calldata targets,
+        uint256[] calldata amounts
     ) internal {
         uint256 sourcesLength = sources.length;
         uint256 targetsLength = targets.length;
@@ -80,75 +74,51 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             "Delegate: You should provide at least one source or one target delegate"
         );
 
-        uint256 sourceIndex = 0;
-        uint256 targetIndex = 0;
-        uint256 remainingSourceAmount = sourcesLength > 0
-            ? sources[0].amount
-            : 0;
-        uint256 remainingTargetAmount = targetsLength > 0
-            ? targets[0].amount
-            : 0;
+        uint256 transferIndex = 0;
         uint256[] memory sourceIds = new uint256[](sourcesLength);
         uint256[] memory targetIds = new uint256[](targetsLength);
         uint256[] memory withdrawnAmounts = new uint256[](sourcesLength);
         uint256[] memory depositedAmounts = new uint256[](targetsLength);
 
         // Iterate until all source and target delegates have been processed.
-        while (sourceIndex < sourcesLength || targetIndex < targetsLength) {
-            if (sourceIndex < sourcesLength && targetIndex < targetsLength) {
+        while (transferIndex < sourcesLength || transferIndex < targetsLength) {
+            if (
+                transferIndex < sourcesLength && transferIndex < targetsLength
+            ) {
                 // Process the delegation transfer between the current source and target delegate pair.
-                uint256 transferAmount = _processDelegation(
-                    sources[sourceIndex],
-                    targets[targetIndex],
-                    remainingSourceAmount,
-                    remainingTargetAmount
+                _processDelegation(
+                    sources[transferIndex],
+                    targets[transferIndex],
+                    amounts[transferIndex]
                 );
+                sourceIds[transferIndex] = uint256(
+                    uint160(sources[transferIndex])
+                );
+                withdrawnAmounts[transferIndex] = amounts[transferIndex];
 
-                // Update the remaining amounts for the current source and target delegates.
-                remainingSourceAmount -= transferAmount;
-                remainingTargetAmount -= transferAmount;
-            } else if (sourceIndex < sourcesLength) {
+                targetIds[transferIndex] = uint256(
+                    uint160(targets[transferIndex])
+                );
+                depositedAmounts[transferIndex] = amounts[transferIndex];
+            } else if (transferIndex < sourcesLength) {
                 // Handle any remaining source amounts after the transfer process.
-                // If target list is exhausted, the caller is considered as the target.
-                _reimburse(sources[sourceIndex], remainingSourceAmount);
-                remainingSourceAmount = 0;
-            } else if (targetIndex < targetsLength) {
+                _reimburse(sources[transferIndex], amounts[transferIndex]);
+                sourceIds[transferIndex] = uint256(
+                    uint160(sources[transferIndex])
+                );
+                withdrawnAmounts[transferIndex] = amounts[transferIndex];
+            } else if (transferIndex < targetsLength) {
                 // Handle any remaining target amounts after the transfer process.
-                // If source list is exhausted, the sender is considered as the remaining source.
                 createProxyDelegatorAndTransfer(
-                    targets[targetIndex].delegate,
-                    remainingTargetAmount
+                    targets[transferIndex],
+                    amounts[transferIndex]
                 );
-                remainingTargetAmount = 0;
-            }
-
-            // If the current source delegate has no remaining amount to withdraw,
-            // store its ID and the withdrawn amount, and move to the next source delegate.
-            if (remainingSourceAmount == 0 && sourceIndex < sourcesLength) {
-                sourceIds[sourceIndex] = uint256(
-                    uint160(sources[sourceIndex].delegate)
+                targetIds[transferIndex] = uint256(
+                    uint160(targets[transferIndex])
                 );
-                withdrawnAmounts[sourceIndex] = sources[sourceIndex].amount;
-                sourceIndex++;
-
-                if (sourceIndex < sourcesLength) {
-                    remainingSourceAmount = sources[sourceIndex].amount;
-                }
+                depositedAmounts[transferIndex] = amounts[transferIndex];
             }
-
-            // If the current target delegate has no remaining amount to transfer,
-            // store its ID and the deposited amount, and move to the next target delegate.
-            if (remainingTargetAmount == 0 && targetIndex < targetsLength) {
-                targetIds[targetIndex] = uint256(
-                    uint160(targets[targetIndex].delegate)
-                );
-                depositedAmounts[targetIndex] = targets[targetIndex].amount;
-                targetIndex++;
-
-                if (targetIndex < targetsLength) {
-                    remainingTargetAmount = targets[targetIndex].amount;
-                }
-            }
+            transferIndex++;
         }
 
         if (sourcesLength > 0) {
@@ -163,60 +133,37 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * @dev Processes the delegation transfer between a source delegate and a target delegate.
      * @param source The source delegate from which tokens are being withdrawn.
      * @param target The target delegate to which tokens are being transferred.
-     * @param remainingSourceAmount The remaining amount of tokens to be withdrawn from the source delegate.
-     * @param remainingTargetAmount The remaining amount of tokens to be transferred to the target delegate.
-     * @return transferAmount The amount of tokens transferred between the source and target delegates.
+     * @param amount The amount of tokens transferred between the source and target delegates.
      */
     function _processDelegation(
-        DelegateAmount calldata source,
-        DelegateAmount calldata target,
-        uint256 remainingSourceAmount,
-        uint256 remainingTargetAmount
-    ) internal returns (uint256 transferAmount) {
-        uint256 balance = getBalanceForDelegatee(source.delegate);
+        address source,
+        address target,
+        uint256 amount
+    ) internal {
+        uint256 balance = getBalanceForDelegatee(source);
 
         require(
-            remainingSourceAmount <= balance,
+            amount <= balance,
             "Delegate: Insufficient balance in the source delegate"
         );
 
-        transferAmount = (remainingSourceAmount < remainingTargetAmount)
-            ? remainingSourceAmount
-            : remainingTargetAmount;
+        transferBetweenDelegators(source, target, amount);
 
-        transferBetweenDelegators(
-            source.delegate,
-            target.delegate,
-            transferAmount
-        );
+        deployProxyDelegatorIfNeeded(target);
 
-        deployProxyDelegatorIfNeeded(target.delegate);
-
-        emit DelegationProcessed(
-            source.delegate,
-            target.delegate,
-            transferAmount
-        );
-
-        return transferAmount;
+        emit DelegationProcessed(source, target, amount);
     }
 
     /**
      * @dev Reimburses any remaining source amounts back to the delegator after the delegation transfer process.
      * @param source The source delegate from which tokens are being withdrawn.
-     * @param remainingSourceAmount The remaining amount of tokens to be withdrawn from the source delegate.
+     * @param amount The amount of tokens to be withdrawn from the source delegate.
      */
-    function _reimburse(
-        DelegateAmount memory source,
-        uint256 remainingSourceAmount
-    ) internal {
+    function _reimburse(address source, uint256 amount) internal {
         // Transfer the remaining source amount or the full source amount
         // (if no remaining amount) to the delegator
-        address proxyAddressFrom = retrieveProxyContractAddress(
-            token,
-            source.delegate
-        );
-        token.transferFrom(proxyAddressFrom, msg.sender, remainingSourceAmount);
+        address proxyAddressFrom = retrieveProxyContractAddress(token, source);
+        token.transferFrom(proxyAddressFrom, msg.sender, amount);
     }
 
     function setUri(string memory uri) external onlyOwner {
@@ -224,10 +171,10 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     }
 
     function createProxyDelegatorAndTransfer(
-        address delegate,
+        address target,
         uint256 amount
     ) internal {
-        address proxyAddress = deployProxyDelegatorIfNeeded(delegate);
+        address proxyAddress = deployProxyDelegatorIfNeeded(target);
         token.transferFrom(msg.sender, proxyAddress, amount);
     }
 
