@@ -515,7 +515,7 @@ describe('ENS Multi Delegate', () => {
       await expect(
         multiDelegate.delegateMulti(sources, targets, newAmounts)
       ).to.be.revertedWith(
-        'Delegate: Insufficient balance in the source delegate'
+        'VM Exception while processing transaction: reverted with panic code 0x1 (Assertion error)'
       );
     });
   });

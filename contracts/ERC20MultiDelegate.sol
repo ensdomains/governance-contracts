@@ -6,6 +6,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @dev A child contract which will be deployed by the ERC20MultiDelegate utility contract
@@ -54,78 +55,63 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * @param amounts The list of amounts to deposit/withdraw.
      */
     function delegateMulti(
-        address[] calldata sources,
-        address[] calldata targets,
+        uint256[] calldata sources,
+        uint256[] calldata targets,
         uint256[] calldata amounts
     ) external {
         _delegateMulti(sources, targets, amounts);
     }
 
     function _delegateMulti(
-        address[] calldata sources,
-        address[] calldata targets,
+        uint256[] calldata sources,
+        uint256[] calldata targets,
         uint256[] calldata amounts
     ) internal {
         uint256 sourcesLength = sources.length;
         uint256 targetsLength = targets.length;
+        uint256 amountsLength = amounts.length;
 
         require(
             sourcesLength > 0 || targetsLength > 0,
             "Delegate: You should provide at least one source or one target delegate"
         );
 
-        uint256 transferIndex = 0;
-        uint256[] memory sourceIds = new uint256[](sourcesLength);
-        uint256[] memory targetIds = new uint256[](targetsLength);
-        uint256[] memory withdrawnAmounts = new uint256[](sourcesLength);
-        uint256[] memory depositedAmounts = new uint256[](targetsLength);
+        require(
+            Math.max(sourcesLength, targetsLength) == amountsLength,
+            "Delegate: The number of amounts must be equal to the greater of the number of sources or targets"
+        );
 
         // Iterate until all source and target delegates have been processed.
-        while (transferIndex < sourcesLength || transferIndex < targetsLength) {
-            if (
-                transferIndex < sourcesLength && transferIndex < targetsLength
-            ) {
-                // Process the delegation transfer between the current source and target delegate pair.
-                _processDelegation(
-                    sources[transferIndex],
-                    targets[transferIndex],
-                    amounts[transferIndex]
-                );
-                sourceIds[transferIndex] = uint256(
-                    uint160(sources[transferIndex])
-                );
-                withdrawnAmounts[transferIndex] = amounts[transferIndex];
+        for (
+            uint transferIndex = 0;
+            transferIndex < Math.max(sourcesLength, targetsLength);
+            transferIndex++
+        ) {
+            address source = transferIndex < sourcesLength
+                ? address(uint160(sources[transferIndex]))
+                : address(0);
+            address target = transferIndex < targetsLength
+                ? address(uint160(targets[transferIndex]))
+                : address(0);
+            uint256 amount = amounts[transferIndex];
 
-                targetIds[transferIndex] = uint256(
-                    uint160(targets[transferIndex])
-                );
-                depositedAmounts[transferIndex] = amounts[transferIndex];
+            if (transferIndex < Math.min(sourcesLength, targetsLength)) {
+                // Process the delegation transfer between the current source and target delegate pair.
+                _processDelegation(source, target, amount);
             } else if (transferIndex < sourcesLength) {
                 // Handle any remaining source amounts after the transfer process.
-                _reimburse(sources[transferIndex], amounts[transferIndex]);
-                sourceIds[transferIndex] = uint256(
-                    uint160(sources[transferIndex])
-                );
-                withdrawnAmounts[transferIndex] = amounts[transferIndex];
+                _reimburse(source, amount);
             } else if (transferIndex < targetsLength) {
                 // Handle any remaining target amounts after the transfer process.
-                createProxyDelegatorAndTransfer(
-                    targets[transferIndex],
-                    amounts[transferIndex]
-                );
-                targetIds[transferIndex] = uint256(
-                    uint160(targets[transferIndex])
-                );
-                depositedAmounts[transferIndex] = amounts[transferIndex];
+                createProxyDelegatorAndTransfer(target, amount);
             }
-            transferIndex++;
         }
 
         if (sourcesLength > 0) {
-            _burnBatch(msg.sender, sourceIds, withdrawnAmounts);
+            _burnBatch(msg.sender, sources, amounts[:sourcesLength]);
         }
         if (targetsLength > 0) {
-            _mintBatch(msg.sender, targetIds, depositedAmounts, "");
+            _mintBatch(msg.sender, targets, amounts[:targetsLength], "");
         }
     }
 
@@ -140,16 +126,12 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address target,
         uint256 amount
     ) internal {
-        uint256 balance = getBalanceForDelegatee(source);
+        uint256 balance = getBalanceForDelegate(source);
 
-        require(
-            amount <= balance,
-            "Delegate: Insufficient balance in the source delegate"
-        );
-
-        transferBetweenDelegators(source, target, amount);
+        assert(amount <= balance);
 
         deployProxyDelegatorIfNeeded(target);
+        transferBetweenDelegators(source, target, amount);
 
         emit DelegationProcessed(source, target, amount);
     }
@@ -207,7 +189,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         return proxyAddress;
     }
 
-    function getBalanceForDelegatee(
+    function getBalanceForDelegate(
         address delegate
     ) internal view returns (uint256) {
         return ERC1155(this).balanceOf(msg.sender, uint256(uint160(delegate)));
