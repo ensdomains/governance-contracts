@@ -176,13 +176,13 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address proxyAddress = retrieveProxyContractAddress(token, delegate);
 
         // check if the proxy contract has already been deployed
-        bytes memory bytecode;
+        uint bytecodeSize;
         assembly {
-            bytecode := extcodesize(proxyAddress)
+            bytecodeSize := extcodesize(proxyAddress)
         }
 
         // if the proxy contract has not been deployed, deploy it
-        if (bytecode.length == 0) {
+        if (bytecodeSize == 0) {
             new ERC20ProxyDelegator{salt: 0}(token, delegate);
             emit ProxyDeployed(delegate, proxyAddress);
         }
@@ -195,9 +195,14 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         return ERC1155(this).balanceOf(msg.sender, uint256(uint160(delegate)));
     }
 
-    function getContractAddress(
-        bytes memory bytecode
+    function retrieveProxyContractAddress(
+        ERC20Votes _token,
+        address _delegate
     ) private view returns (address) {
+        bytes memory bytecode = abi.encodePacked(
+            type(ERC20ProxyDelegator).creationCode, 
+            abi.encode(_token, _delegate)
+        );
         bytes32 hash = keccak256(
             abi.encodePacked(
                 bytes1(0xff),
@@ -207,21 +212,5 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             )
         );
         return address(uint160(uint256(hash)));
-    }
-
-    function getBytecode(
-        ERC20Votes _token,
-        address _delegate
-    ) private pure returns (bytes memory) {
-        bytes memory bytecode = type(ERC20ProxyDelegator).creationCode;
-        return abi.encodePacked(bytecode, abi.encode(_token, _delegate));
-    }
-
-    function retrieveProxyContractAddress(
-        ERC20Votes _token,
-        address _delegate
-    ) private view returns (address) {
-        bytes memory bytecode = getBytecode(_token, _delegate);
-        return getContractAddress(bytecode);
     }
 }
