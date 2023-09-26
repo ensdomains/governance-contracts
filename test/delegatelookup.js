@@ -35,7 +35,7 @@ describe("ENS delegate", () => {
 
         const ENSDelegate = await ethers.getContractFactory("ENSDelegateLookup");
         delegate = await ENSDelegate.deploy(registry.address, token.address);
-        await delegate.deployed();
+        await registry.deployed();
 
         await registry.setSubnodeOwner(ROOT_NODE, labelHash, deployer);
         await registry.setResolver(node, resolver.address);

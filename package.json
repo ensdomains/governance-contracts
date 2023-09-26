@@ -4,8 +4,7 @@
   "description": "ENS Governance Contracts",
   "main": "index.js",
   "scripts": {
-    "test": "hardhat test",
-    "coverage": "hardhat coverage"
+    "test": "hardhat test"
   },
   "author": "ENS Team (@ensdomains)",
   "license": "MIT",
@@ -24,8 +23,6 @@
     "ethers": "^5.4.6",
     "hardhat": "^2.6.3",
     "hardhat-deploy": "^0.9.1",
-    "hardhat-gas-reporter": "^1.0.8",
-    "merkletreejs": "^0.2.24",
-    "solidity-coverage": "^0.8.2"
+    "merkletreejs": "^0.2.24"
   }
 }

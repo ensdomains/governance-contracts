@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.2;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/governance/Governor.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorProposalThreshold.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
@@ -47,7 +46,7 @@ contract ENSGovernor is Governor, GovernorProposalThreshold, GovernorCountingSim
     function getVotes(address account, uint256 blockNumber)
         public
         view
-        override(IGovernor, Governor)
+        override(IGovernor, GovernorVotes)
         returns (uint256)
     {
         return super.getVotes(account, blockNumber);
