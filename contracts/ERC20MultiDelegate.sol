@@ -153,7 +153,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     ) internal {
         uint256 balance = getBalanceForDelegate(source);
 
-        assert(amount <= balance);
+        require(amount <= balance, "Insufficient balance");
 
         deployProxyDelegatorIfNeeded(target);
         transferBetweenDelegators(source, target, amount);
