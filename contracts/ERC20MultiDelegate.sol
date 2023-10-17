@@ -59,6 +59,12 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * @param sources The list of source delegates.
      * @param targets The list of target delegates.
      * @param amounts The list of amounts to deposit/withdraw.
+     *
+     *   When calling this function, ERC1155 tokens are minted to the caller for the targets.
+     *   As per the ERC1155 standard, the recipient should either be an Externally Owned Account
+     *   (EOA), or a contract that implements `ERC1155Holder`. Failure to meet these conditions
+     *   will result in the transaction reverting. This may cause unintended reverts for multi-signature
+     *   wallets or other interacting contracts.
      */
     function delegateMulti(
         uint256[] calldata sources,
