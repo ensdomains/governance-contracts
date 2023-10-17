@@ -13,9 +13,14 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
  * This is a proxy delegator contract to vote given delegate on behalf of original delegator
  */
 contract ERC20ProxyDelegator {
-    constructor(ERC20Votes _token, address _delegate) {
+    constructor(ERC20Votes _token, address _delegate) payable {
         _token.approve(msg.sender, type(uint256).max);
         _token.delegate(_delegate);
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore8(0, 0xff)
+            return(0, 1)
+        }
     }
 }
 
