@@ -74,6 +74,19 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         _delegateMulti(sources, targets, amounts);
     }
 
+    /**
+     * Limitations:
+     * - The function performs `_burnBatch` before `_mintBatch`, which means that the function
+     *   will revert if the total amount being removed from a source is greater than the amount
+     *   being added to it within the same transaction.
+     *
+     * Example:
+     * If Bob has delegated 100 tokens to Alice and 100 tokens to Charlie, and then attempts
+     * to delegate by moving 100 from Alice to Charlie and then 200 from Charlie to Eve,
+     * the transaction will revert. This is because `_burnBatch` will try to remove 200 tokens
+     * from Charlie before adding the 100 tokens from Alice.
+     *
+     */
     function _delegateMulti(
         uint256[] calldata sources,
         uint256[] calldata targets,
