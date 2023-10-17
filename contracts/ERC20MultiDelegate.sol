@@ -34,6 +34,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
     /** ### EVENTS ### */
 
+    event MetadataURIUpdated(string uri);
     event ProxyDeployed(address indexed delegate, address proxyAddress);
     event DelegationProcessed(
         address indexed from,
@@ -155,6 +156,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
     function setUri(string memory uri) external onlyOwner {
         _setURI(uri);
+        emit MetadataURIUpdated(uri);
     }
 
     function createProxyDelegatorAndTransfer(
