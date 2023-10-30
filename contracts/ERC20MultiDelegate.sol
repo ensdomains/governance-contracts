@@ -28,7 +28,7 @@ contract ERC20ProxyDelegator {
 contract ERC20MultiDelegate is ERC1155, Ownable {
     using Address for address;
 
-    ERC20Votes public token;
+    ERC20Votes public immutable token;
 
     /** ### EVENTS ### */
 
