@@ -223,15 +223,15 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         ERC20Votes _token,
         address _delegate
     ) private view returns (address) {
-        bytes memory bytecode = abi.encodePacked(
+        bytes memory bytecode = bytes.concat(
             type(ERC20ProxyDelegator).creationCode,
             abi.encode(_token, _delegate)
         );
         bytes32 hash = keccak256(
-            abi.encodePacked(
+            bytes.concat(
                 bytes1(0xff),
-                address(this),
-                uint256(0), // salt
+                bytes20(address(this)),
+                bytes32(uint256(0)), // salt
                 keccak256(bytecode)
             )
         );
