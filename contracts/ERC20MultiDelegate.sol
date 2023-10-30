@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.2;
+pragma solidity ^0.8.21;
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
@@ -16,8 +16,7 @@ contract ERC20ProxyDelegator {
     constructor(ERC20Votes _token, address _delegate) payable {
         require(_token.approve(msg.sender, type(uint256).max));
         _token.delegate(_delegate);
-        /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             mstore8(0, 0xff)
             return(0, 1)
         }
