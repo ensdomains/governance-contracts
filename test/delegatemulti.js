@@ -91,6 +91,8 @@ describe('ENS Multi Delegate', () => {
   let registry;
   let snapshot;
   let multiDelegate;
+  let reverseRegistrar;
+  let universalResolver;
 
   before(async () => {
     ({ deployer, alice, bob, charlie, dave } = await getNamedAccounts());
@@ -106,19 +108,36 @@ describe('ENS Multi Delegate', () => {
     registry = await Registry.deploy();
     await registry.deployed();
 
+    const ReverseRegistrar = await ethers.getContractFactory('ReverseRegistrar');
+    reverseRegistrar = await ReverseRegistrar.deploy(registry.address);
+    await reverseRegistrar.deployed();
+
+    const NameWrapper = await ethers.getContractFactory('DummyNameWrapper');
+    nameWrapper = await NameWrapper.deploy();
+    await nameWrapper.deployed();
+
     const Resolver = await ethers.getContractFactory('PublicResolver');
     resolver = await Resolver.deploy(
       registry.address,
-      ethers.constants.AddressZero
+      nameWrapper.address,
+      ethers.constants.AddressZero,
+      reverseRegistrar.address
     );
     await resolver.deployed();
+
+    const UniversalResolver = await ethers.getContractFactory('UniversalResolver');
+    universalResolver = await UniversalResolver.deploy(
+      registry.address,
+      ['http://localhost:8080/']
+    );
+    await universalResolver.deployed();
 
     const ENSMultiDelegate = await ethers.getContractFactory(
       'ERC20MultiDelegate'
     );
     multiDelegate = await ENSMultiDelegate.deploy(
       token.address,
-      'http://localhost:8080/{id}'
+      universalResolver.address
     );
     await multiDelegate.deployed();
 
@@ -720,5 +739,12 @@ describe('ENS Multi Delegate', () => {
         multiDelegate.connect(secondDelegator).setUri(newURI)
       ).to.be.revertedWith('Ownable: caller is not the owner');
     });
+
+    // it('should retrieve onchain metadata for given tokenID', async () => {
+    //   expect(
+    //     await multiDelegate.tokenURI(alice),
+    //     "test"
+    //   );
+    // });
   });
 });

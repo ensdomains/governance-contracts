@@ -13,29 +13,40 @@ const ROOT_NODE = '0x00000000000000000000000000000000000000000000000000000000000
 describe("ENS delegate", () => {
     let token;
     let deployer;
+    let nameWrapper;
     let resolver;
     let registry;
     let delegate;
-
+    let reverseRegistrar;
+  
     before(async () => {
-        ({deployer} = await getNamedAccounts());
+      ({ deployer } = await getNamedAccounts());
     });
-
+  
     beforeEach(async () => {
         await deployments.fixture(['ENSToken']);
-        token = await ethers.getContract("ENSToken");
-
-        const Registry = await ethers.getContractFactory("ENSRegistry");
+        token = await ethers.getContract('ENSToken');
+    
+        const Registry = await ethers.getContractFactory('ENSRegistry');
         registry = await Registry.deploy();
         await registry.deployed();
-
-        const Resolver = await ethers.getContractFactory("PublicResolver");
-        resolver = await Resolver.deploy(registry.address, ethers.constants.AddressZero);
+    
+        const ReverseRegistrar = await ethers.getContractFactory('ReverseRegistrar');
+        reverseRegistrar = await ReverseRegistrar.deploy(registry.address);
+        await reverseRegistrar.deployed();
+    
+        const NameWrapper = await ethers.getContractFactory('DummyNameWrapper');
+        nameWrapper = await NameWrapper.deploy();
+        await nameWrapper.deployed();
+    
+        const Resolver = await ethers.getContractFactory('PublicResolver');
+        resolver = await Resolver.deploy(
+            registry.address,
+            nameWrapper.address,
+            ethers.constants.AddressZero,
+            reverseRegistrar.address
+        );
         await resolver.deployed();
-
-        const ENSDelegate = await ethers.getContractFactory("ENSDelegateLookup");
-        delegate = await ENSDelegate.deploy(registry.address, token.address);
-        await delegate.deployed();
 
         await registry.setSubnodeOwner(ROOT_NODE, labelHash, deployer);
         await registry.setResolver(node, resolver.address);
