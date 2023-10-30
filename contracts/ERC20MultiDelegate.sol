@@ -126,7 +126,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                 _reimburse(source, amount);
             } else if (transferIndex < targetsLength) {
                 // Handle any remaining target amounts after the transfer process.
-                createProxyDelegatorAndTransfer(target, amount);
+                _createProxyDelegatorAndTransfer(target, amount);
             }
         }
 
@@ -149,12 +149,12 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address target,
         uint256 amount
     ) internal {
-        uint256 balance = getBalanceForDelegate(source);
+        uint256 balance = _getBalanceForDelegate(source);
 
         require(amount <= balance, "Insufficient balance");
 
-        deployProxyDelegatorIfNeeded(target);
-        transferBetweenDelegators(source, target, amount);
+        _deployProxyDelegatorIfNeeded(target);
+        _transferBetweenDelegators(source, target, amount);
 
         emit DelegationProcessed(source, target, amount);
     }
@@ -167,7 +167,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     function _reimburse(address source, uint256 amount) internal {
         // Transfer the remaining source amount or the full source amount
         // (if no remaining amount) to the delegator
-        address proxyAddressFrom = retrieveProxyContractAddress(token, source);
+        address proxyAddressFrom = _retrieveProxyContractAddress(token, source);
         require(token.transferFrom(proxyAddressFrom, msg.sender, amount));
     }
 
@@ -176,28 +176,28 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         emit MetadataURIUpdated(uri);
     }
 
-    function createProxyDelegatorAndTransfer(
+    function _createProxyDelegatorAndTransfer(
         address target,
         uint256 amount
     ) internal {
-        address proxyAddress = deployProxyDelegatorIfNeeded(target);
+        address proxyAddress = _deployProxyDelegatorIfNeeded(target);
         require(token.transferFrom(msg.sender, proxyAddress, amount));
     }
 
-    function transferBetweenDelegators(
+    function _transferBetweenDelegators(
         address from,
         address to,
         uint256 amount
     ) internal {
-        address proxyAddressFrom = retrieveProxyContractAddress(token, from);
-        address proxyAddressTo = retrieveProxyContractAddress(token, to);
+        address proxyAddressFrom = _retrieveProxyContractAddress(token, from);
+        address proxyAddressTo = _retrieveProxyContractAddress(token, to);
         require(token.transferFrom(proxyAddressFrom, proxyAddressTo, amount));
     }
 
-    function deployProxyDelegatorIfNeeded(
+    function _deployProxyDelegatorIfNeeded(
         address delegate
     ) internal returns (address) {
-        address proxyAddress = retrieveProxyContractAddress(token, delegate);
+        address proxyAddress = _retrieveProxyContractAddress(token, delegate);
 
         // check if the proxy contract has already been deployed
         uint bytecodeSize;
@@ -213,13 +213,13 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         return proxyAddress;
     }
 
-    function getBalanceForDelegate(
+    function _getBalanceForDelegate(
         address delegate
     ) internal view returns (uint256) {
         return ERC1155(this).balanceOf(msg.sender, uint256(uint160(delegate)));
     }
 
-    function retrieveProxyContractAddress(
+    function _retrieveProxyContractAddress(
         ERC20Votes _token,
         address _delegate
     ) private view returns (address) {
