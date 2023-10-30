@@ -233,6 +233,23 @@ describe('ENS Multi Delegate', () => {
         'Delegate: You should provide at least one source or one target delegate'
       );
     });
+
+    it('should revert if upper 96 bits of target uint256 is not zero', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+
+      // give allowance to multi delegate contract
+      await token.approve(multiDelegate.address, delegatorTokenAmount);
+
+      await expect(
+        multiDelegate.delegateMulti(
+          [],
+          [
+            '0xff0000000000000000000000f8a6016e243e63b6e8ee1178d6a717850b5d6103',
+          ],
+          [delegatorTokenAmount]
+        )
+      ).to.be.revertedWith('Upper 96 bits of target uint256 must be zero');
+    });
   });
 
   describe('re-deposit', () => {
@@ -514,9 +531,45 @@ describe('ENS Multi Delegate', () => {
 
       await expect(
         multiDelegate.delegateMulti(sources, targets, newAmounts)
-      ).to.be.revertedWith(
-        "VM Exception while processing transaction: reverted with reason string 'Insufficient balance'"
+      ).to.be.revertedWith('ERC20: insufficient allowance');
+    });
+
+    it('should revert if upper 96 bits of source uint256 is not zero', async () => {
+      const delegatorTokenAmount = await token.balanceOf(deployer);
+
+      // give allowance to multi delegate contract
+      await token.approve(multiDelegate.address, delegatorTokenAmount);
+      // delegate multiple delegates
+      const delegates = [deployer, alice];
+      const amounts = delegates.map(() =>
+        delegatorTokenAmount.div(delegates.length)
       );
+
+      await multiDelegate.delegateMulti([], delegates, amounts);
+      const brokenDelegateList = [
+        ('0x' + deployer.slice(2).padStart(64, '0')).replace('0x00', '0xff'),
+        alice,
+      ];
+      const newDelegateList = [bob];
+
+      const sourceDelegateArray = brokenDelegateList.map((delegate) => [
+        delegate,
+        delegatorTokenAmount.div(brokenDelegateList.length),
+      ]);
+
+      const targetDelegateArray = newDelegateList.map((newDelegate) => [
+        newDelegate,
+        delegatorTokenAmount.div(newDelegateList.length),
+      ]);
+
+      const [sources, targets, newAmounts] = reDistributeVotingPower(
+        sourceDelegateArray,
+        targetDelegateArray
+      );
+
+      await expect(
+        multiDelegate.delegateMulti(sources, targets, newAmounts)
+      ).to.be.revertedWith('Upper 96 bits of source uint256 must be zero');
     });
   });
 

@@ -109,12 +109,17 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             uint transferIndex = 0;
             transferIndex < Math.max(sourcesLength, targetsLength);
         ) {
-            address source = transferIndex < sourcesLength
-                ? address(uint160(sources[transferIndex]))
-                : address(0);
-            address target = transferIndex < targetsLength
-                ? address(uint160(targets[transferIndex]))
-                : address(0);
+            address source = address(0);
+            address target = address(0);
+            if (transferIndex < sourcesLength) {
+                require((sources[transferIndex] >> 160) == 0, "Upper 96 bits of source uint256 must be zero");
+                source = address(uint160(sources[transferIndex]));
+            }
+            if (transferIndex < targetsLength) {
+                require((targets[transferIndex] >> 160) == 0, "Upper 96 bits of target uint256 must be zero");
+                target = address(uint160(targets[transferIndex]));
+            }
+
             uint256 amount = amounts[transferIndex];
 
             if (transferIndex < Math.min(sourcesLength, targetsLength)) {
@@ -150,10 +155,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address target,
         uint256 amount
     ) internal {
-        uint256 balance = _getBalanceForDelegate(source);
-
-        require(amount <= balance, "Insufficient balance");
-
         _deployProxyDelegatorIfNeeded(target);
         _transferBetweenDelegators(source, target, amount);
 
