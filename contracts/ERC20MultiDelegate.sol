@@ -108,7 +108,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         for (
             uint transferIndex = 0;
             transferIndex < Math.max(sourcesLength, targetsLength);
-            transferIndex++
         ) {
             address source = transferIndex < sourcesLength
                 ? address(uint160(sources[transferIndex]))
@@ -128,6 +127,8 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                 // Handle any remaining target amounts after the transfer process.
                 _createProxyDelegatorAndTransfer(target, amount);
             }
+
+            unchecked { transferIndex++; }
         }
 
         if (sourcesLength > 0) {
