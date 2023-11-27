@@ -92,7 +92,6 @@ describe('ENS Multi Delegate', () => {
   let registry;
   let snapshot;
   let multiDelegate;
-  let nameWrapper;
   let reverseRegistrar;
   let universalResolver;
 
@@ -123,14 +122,10 @@ describe('ENS Multi Delegate', () => {
       reverseRegistrar.address
     );
 
-    const NameWrapper = await ethers.getContractFactory('DummyNameWrapper');
-    nameWrapper = await NameWrapper.deploy();
-    await nameWrapper.deployed();
-
     const Resolver = await ethers.getContractFactory('PublicResolver');
     resolver = await Resolver.deploy(
       registry.address,
-      nameWrapper.address,
+      ethers.constants.AddressZero,
       ethers.constants.AddressZero,
       reverseRegistrar.address
     );

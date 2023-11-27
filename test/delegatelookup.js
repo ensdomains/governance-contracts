@@ -16,7 +16,6 @@ const ROOT_NODE =
 describe('ENS delegate', () => {
   let token;
   let deployer;
-  let nameWrapper;
   let resolver;
   let registry;
   let delegate;
@@ -51,14 +50,10 @@ describe('ENS delegate', () => {
       reverseRegistrar.address
     );
 
-    const NameWrapper = await ethers.getContractFactory('DummyNameWrapper');
-    nameWrapper = await NameWrapper.deploy();
-    await nameWrapper.deployed();
-
     const Resolver = await ethers.getContractFactory('PublicResolver');
     resolver = await Resolver.deploy(
       registry.address,
-      nameWrapper.address,
+      ethers.constants.AddressZero,
       ethers.constants.AddressZero,
       ethers.constants.AddressZero
     );
