@@ -36,6 +36,8 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     ERC20Votes public immutable token;
     UniversalResolver public immutable metadataResolver;
 
+    error NotImplemented();
+
     /** ### EVENTS ### */
 
     event MetadataURIUpdated(string uri);
@@ -189,20 +191,30 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         require(token.transferFrom(proxyAddressFrom, msg.sender, amount));
     }
 
-    function setUri(string memory uri) external onlyOwner {
-        _setURI(uri);
-        emit MetadataURIUpdated(uri);
+    function setUri(string memory /*uri*/) external view onlyOwner {
+        revert NotImplemented();
     }
 
     function tokenURI(uint256 tokenId) public view returns (string memory) {
-        (string memory resolvedName, , , ) = metadataResolver.reverse(
-            bytes(
-                string.concat(
-                    Strings.toHexString(uint160(tokenId), 20),
-                    ".addr.reverse"
-                )
-            )
+        string memory addressString = Strings.toHexString(uint160(tokenId), 20);
+        string memory reversedName = string.concat(
+            this.trim(addressString, 2, bytes(addressString).length),
+            ".addr.reverse"
         );
+        (bytes memory encodedReversedName, ) = reversedName.dnsEncodeName();
+
+        string memory resolvedName;
+        try metadataResolver.reverse(encodedReversedName) returns (
+            string memory _resolvedName,
+            address,
+            address,
+            address
+        ) {
+            resolvedName = _resolvedName;
+        } catch {
+            return "";
+        }
+
         (bytes memory encodedName, bytes32 namehash) = resolvedName
             .dnsEncodeName();
         bytes memory data = abi.encodeWithSignature(
@@ -210,13 +222,16 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             [namehash, "avatar"]
         );
         (bytes memory result, ) = metadataResolver.resolve(encodedName, data);
-        string memory imageUri = abi.decode(result, (string));
+        string memory imageUri = result.length == 0
+            ? ""
+            : abi.decode(result, (string));
         string memory json = Base64.encode(
             bytes(
                 string.concat(
                     '{"name": "',
                     resolvedName,
-                    " Token",
+                    " Delegate Token",
+                    '", "token_id": "',
                     Strings.toString(tokenId),
                     '", "description": "This NFT is a proof for your ENS delegation strategy.", "image": "',
                     imageUri,
@@ -225,6 +240,14 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             )
         );
         return string.concat("data:application/json;base64,", json);
+    }
+
+    function trim(
+        string calldata str,
+        uint start,
+        uint end
+    ) external pure returns (string memory) {
+        return str[start:end];
     }
 
     function _createProxyDelegatorAndTransfer(
