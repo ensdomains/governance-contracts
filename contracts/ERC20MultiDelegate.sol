@@ -15,6 +15,8 @@ contract ERC20ProxyDelegator {
     constructor(ERC20Votes _token, address _delegate) payable {
         require(_token.approve(msg.sender, type(uint256).max));
         _token.delegate(_delegate);
+        // We don't actually require any runtime code for this contract.
+        // This assembly snippet causes the constructor to return minimal bytecode for the contract, which saves gas.
         assembly ("memory-safe") {
             mstore8(0, 0xff)
             return(0, 1)
