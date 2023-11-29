@@ -232,10 +232,10 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             abi.encode(_token, _delegate)
         );
         bytes32 hash = keccak256(
-            bytes.concat(
+            abi.encodePacked(
                 bytes1(0xff),
-                bytes20(address(this)),
-                bytes32(uint256(0)), // salt
+                address(this),
+                uint256(0), // salt
                 keccak256(bytecode)
             )
         );
