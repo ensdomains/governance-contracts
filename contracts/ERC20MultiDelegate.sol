@@ -197,11 +197,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
     function tokenURI(uint256 tokenId) public view returns (string memory) {
         string memory addressString = Strings.toHexString(uint160(tokenId), 20);
-        string memory reversedName = string.concat(
-            this.trim(addressString, 2, bytes(addressString).length),
-            ".addr.reverse"
-        );
-        (bytes memory encodedReversedName, ) = reversedName.dnsEncodeName();
+        bytes memory encodedReversedName = bytes.concat("\x28", addressString, "\x04addr\x07reverse\x00");
 
         string memory resolvedName;
         try metadataResolver.reverse(encodedReversedName) returns (
