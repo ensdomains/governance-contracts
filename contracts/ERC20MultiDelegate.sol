@@ -36,7 +36,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     ERC20Votes public immutable token;
     UniversalResolver public immutable metadataResolver;
 
-    error NotImplemented();
+    error Upper96BitsNotZero();
 
     /** ### EVENTS ### */
 
@@ -122,17 +122,13 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             address source = address(0);
             address target = address(0);
             if (transferIndex < sourcesLength) {
-                require(
-                    (sources[transferIndex] >> 160) == 0,
-                    "Upper 96 bits of source uint256 must be zero"
-                );
+                if ((sources[transferIndex] >> 160) != 0)
+                    revert Upper96BitsNotZero();
                 source = address(uint160(sources[transferIndex]));
             }
             if (transferIndex < targetsLength) {
-                require(
-                    (targets[transferIndex] >> 160) == 0,
-                    "Upper 96 bits of target uint256 must be zero"
-                );
+                if ((targets[transferIndex] >> 160) != 0)
+                    revert Upper96BitsNotZero();
                 target = address(uint160(targets[transferIndex]));
             }
 
