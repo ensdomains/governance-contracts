@@ -276,7 +276,7 @@ describe('ENS Multi Delegate', () => {
           ],
           [delegatorTokenAmount]
         )
-      ).to.be.revertedWith('Upper 96 bits of target uint256 must be zero');
+      ).to.be.revertedWith('Upper96BitsNotZero()');
     });
   });
 
@@ -597,7 +597,7 @@ describe('ENS Multi Delegate', () => {
 
       await expect(
         multiDelegate.delegateMulti(sources, targets, newAmounts)
-      ).to.be.revertedWith('Upper 96 bits of source uint256 must be zero');
+      ).to.be.revertedWith('Upper96BitsNotZero()');
     });
   });
 
@@ -735,13 +735,6 @@ describe('ENS Multi Delegate', () => {
   });
 
   describe('metadata uri', () => {
-    it('no one, even deployer should not be able to update metadata uri', async () => {
-      const newURI = 'http://localhost:8081';
-      await expect(multiDelegate.setUri(newURI)).to.be.revertedWith(
-        'NotImplemented()'
-      );
-    });
-
     it('should retrieve onchain metadata for given tokenID if available', async () => {
       const delegateLabel = 'test';
       const delegateName = `${delegateLabel}.eth`;

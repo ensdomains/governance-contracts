@@ -10,6 +10,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {UniversalResolver} from "@ensdomains/ens-contracts/contracts/utils/UniversalResolver.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/contracts/utils/NameEncoder.sol";
+import {HexUtils} from "./utils/HexUtils.sol";
 
 /**
  * @dev A child contract which will be deployed by the ERC20MultiDelegate utility contract
@@ -32,6 +33,7 @@ contract ERC20ProxyDelegator {
 contract ERC20MultiDelegate is ERC1155, Ownable {
     using Address for address;
     using NameEncoder for string;
+    using HexUtils for address;
 
     ERC20Votes public immutable token;
     UniversalResolver public immutable metadataResolver;
@@ -184,15 +186,25 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         require(token.transferFrom(proxyAddressFrom, msg.sender, amount));
     }
 
-    function setUri(string memory /*uri*/) external view onlyOwner {
-        revert NotImplemented();
-    }
-
+    /**
+     * @dev Generates an onchain metadata for a given tokenId.
+     *
+     * @param tokenId The token ID (address) of the delegate.
+     * @return Onchain metadata in base64 format "data:application/json;base64,<encoded-json>".
+     */
     function tokenURI(uint256 tokenId) public view returns (string memory) {
-        string memory addressString = Strings.toHexString(uint160(tokenId), 20);
-        bytes memory encodedReversedName = bytes.concat("\x28", addressString, "\x04addr\x07reverse\x00");
+        // convert tokenId to a hex string representation of the address
+        string memory hexAddress = address(uint160(tokenId)).addressToHex();
+
+        // construct the encoded reversed name
+        bytes memory encodedReversedName = bytes.concat(
+            "\x28",
+            bytes(hexAddress),
+            "\x04addr\x07reverse\x00"
+        );
 
         string memory resolvedName;
+        // attempt to resolve the reversed name using the metadataResolver
         try metadataResolver.reverse(encodedReversedName) returns (
             string memory _resolvedName,
             address,
@@ -200,20 +212,31 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             address
         ) {
             resolvedName = _resolvedName;
-        } catch {
-            return "";
+        } catch {}
+
+        string memory imageUri = "";
+
+        if (bytes(resolvedName).length > 0) {
+            (bytes memory encodedName, bytes32 namehash) = resolvedName
+                .dnsEncodeName();
+            bytes memory data = abi.encodeWithSignature(
+                "text(bytes32,string)",
+                [namehash, "avatar"]
+            );
+
+            // attempt to resolve the avatar using the universal resolver
+            try metadataResolver.resolve(encodedName, data) returns (
+                bytes memory _imageUri,
+                address
+            ) {
+                imageUri = _imageUri.length == 0
+                    ? ""
+                    : abi.decode(_imageUri, (string));
+            } catch {}
+        } else {
+            resolvedName = hexAddress;
         }
 
-        (bytes memory encodedName, bytes32 namehash) = resolvedName
-            .dnsEncodeName();
-        bytes memory data = abi.encodeWithSignature(
-            "text(bytes32,string)",
-            [namehash, "avatar"]
-        );
-        (bytes memory result, ) = metadataResolver.resolve(encodedName, data);
-        string memory imageUri = result.length == 0
-            ? ""
-            : abi.decode(result, (string));
         string memory json = Base64.encode(
             bytes(
                 string.concat(
@@ -229,14 +252,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             )
         );
         return string.concat("data:application/json;base64,", json);
-    }
-
-    function trim(
-        string calldata str,
-        uint start,
-        uint end
-    ) external pure returns (string memory) {
-        return str[start:end];
     }
 
     function _createProxyDelegatorAndTransfer(
