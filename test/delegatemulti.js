@@ -276,7 +276,7 @@ describe('ENS Multi Delegate', () => {
           ],
           [delegatorTokenAmount]
         )
-      ).to.be.revertedWith('Upper96BitsNotZero()');
+      ).to.be.revertedWith('InvalidDelegateAddress()');
     });
   });
 
@@ -597,7 +597,7 @@ describe('ENS Multi Delegate', () => {
 
       await expect(
         multiDelegate.delegateMulti(sources, targets, newAmounts)
-      ).to.be.revertedWith('Upper96BitsNotZero()');
+      ).to.be.revertedWith('InvalidDelegateAddress()');
     });
   });
 
