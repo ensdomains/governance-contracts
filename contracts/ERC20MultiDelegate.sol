@@ -11,6 +11,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {UniversalResolver} from "@ensdomains/ens-contracts/contracts/utils/UniversalResolver.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/contracts/utils/NameEncoder.sol";
 import {HexUtils} from "./utils/HexUtils.sol";
+import {StringUtils} from "./utils/StringUtils.sol";
 
 /**
  * @dev A child contract which will be deployed by the ERC20MultiDelegate utility contract
@@ -34,6 +35,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     using Address for address;
     using NameEncoder for string;
     using HexUtils for address;
+    using StringUtils for string;
 
     ERC20Votes public immutable token;
     UniversalResolver public immutable metadataResolver;
@@ -243,12 +245,12 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             bytes(
                 string.concat(
                     '{"name": "',
-                    resolvedName,
+                    resolvedName.escape(),
                     " Delegate Token",
                     '", "token_id": "',
                     Strings.toString(tokenId),
                     '", "description": "This NFT is a proof for your ENS delegation strategy.", "image": "',
-                    imageUri,
+                    imageUri.escape(),
                     '"}'
                 )
             )
