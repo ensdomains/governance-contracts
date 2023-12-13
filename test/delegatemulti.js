@@ -2,6 +2,7 @@ const { expect } = require('chai');
 const { ethers, deployments, getNamedAccounts } = require('hardhat');
 const namehash = require('@ensdomains/eth-ens-namehash');
 const { utils } = ethers;
+const sha3 = require('web3-utils').sha3;
 
 const label = 'eth';
 const labelHash = utils.keccak256(utils.toUtf8Bytes(label));
@@ -91,6 +92,8 @@ describe('ENS Multi Delegate', () => {
   let registry;
   let snapshot;
   let multiDelegate;
+  let reverseRegistrar;
+  let universalResolver;
 
   before(async () => {
     ({ deployer, alice, bob, charlie, dave } = await getNamedAccounts());
@@ -106,19 +109,44 @@ describe('ENS Multi Delegate', () => {
     registry = await Registry.deploy();
     await registry.deployed();
 
+    const ReverseRegistrar = await ethers.getContractFactory(
+      'ReverseRegistrar'
+    );
+    reverseRegistrar = await ReverseRegistrar.deploy(registry.address);
+    await reverseRegistrar.deployed();
+
+    await registry.setSubnodeOwner(ROOT_NODE, sha3('reverse'), deployer);
+    await registry.setSubnodeOwner(
+      namehash.hash('reverse'),
+      sha3('addr'),
+      reverseRegistrar.address
+    );
+
     const Resolver = await ethers.getContractFactory('PublicResolver');
     resolver = await Resolver.deploy(
       registry.address,
-      ethers.constants.AddressZero
+      ethers.constants.AddressZero,
+      ethers.constants.AddressZero,
+      reverseRegistrar.address
     );
     await resolver.deployed();
+
+    await reverseRegistrar.setDefaultResolver(resolver.address);
+
+    const UniversalResolver = await ethers.getContractFactory(
+      'UniversalResolver'
+    );
+    universalResolver = await UniversalResolver.deploy(registry.address, [
+      'http://localhost:8080/',
+    ]);
+    await universalResolver.deployed();
 
     const ENSMultiDelegate = await ethers.getContractFactory(
       'ERC20MultiDelegate'
     );
     multiDelegate = await ENSMultiDelegate.deploy(
       token.address,
-      'http://localhost:8080/{id}'
+      universalResolver.address
     );
     await multiDelegate.deployed();
 
@@ -248,7 +276,7 @@ describe('ENS Multi Delegate', () => {
           ],
           [delegatorTokenAmount]
         )
-      ).to.be.revertedWith('Upper 96 bits of target uint256 must be zero');
+      ).to.be.revertedWith('InvalidDelegateAddress()');
     });
   });
 
@@ -569,7 +597,7 @@ describe('ENS Multi Delegate', () => {
 
       await expect(
         multiDelegate.delegateMulti(sources, targets, newAmounts)
-      ).to.be.revertedWith('Upper 96 bits of source uint256 must be zero');
+      ).to.be.revertedWith('InvalidDelegateAddress()');
     });
   });
 
@@ -707,18 +735,58 @@ describe('ENS Multi Delegate', () => {
   });
 
   describe('metadata uri', () => {
-    it('deployer should be able to update metadata uri', async () => {
-      const newURI = 'http://localhost:8081';
-      await multiDelegate.setUri(newURI);
-      expect(multiDelegate.uri, newURI);
-    });
+    it('should retrieve onchain metadata for given tokenID if available', async () => {
+      const delegateLabel = 'test';
+      const delegateName = `${delegateLabel}.eth`;
 
-    it('others should not be able to update metadata uri', async () => {
-      const newURI = 'http://localhost:8081';
-      const [_, secondDelegator] = await ethers.getSigners();
-      await expect(
-        multiDelegate.connect(secondDelegator).setUri(newURI)
-      ).to.be.revertedWith('Ownable: caller is not the owner');
+      await registry.setSubnodeOwner(
+        ROOT_NODE,
+        utils.keccak256(utils.toUtf8Bytes('eth')),
+        deployer
+      );
+      await registry.setSubnodeOwner(
+        namehash.hash('eth'),
+        utils.keccak256(utils.toUtf8Bytes(delegateLabel)),
+        alice
+      );
+      expect(await registry.owner(namehash.hash(delegateName)), alice);
+
+      const [_, aliceSigner] = await ethers.getSigners();
+      await registry
+        .connect(aliceSigner)
+        .setResolver(namehash.hash(delegateName), resolver.address);
+      expect(
+        await registry.resolver(namehash.hash(delegateName)),
+        resolver.address
+      );
+
+      await resolver
+        .connect(aliceSigner)
+        .functions['setAddr(bytes32,address)'](
+          namehash.hash(delegateName),
+          alice
+        );
+      await reverseRegistrar.connect(aliceSigner).setName(delegateName);
+      const metadataBase64 = await multiDelegate.tokenURI(alice);
+      const metadataJSON = JSON.parse(
+        Buffer.from(metadataBase64.split('base64,')[1], 'base64').toString()
+      );
+      expect(metadataJSON.name, `${delegateName} Delegate Token`);
+      expect(
+        metadataJSON.token_id,
+        // '642829559307850963015472508762062935916233390536'
+        BigInt(alice).toString(10)
+      );
+      expect(
+        metadataJSON.description,
+        'This NFT is a proof for your ENS delegation strategy.'
+      );
+      expect(metadataJSON.image, '');
     });
+  });
+
+  it('should retrieve empty metadata for given tokenID if not available', async () => {
+    const metadataBase64 = await multiDelegate.tokenURI(bob);
+    expect(metadataBase64, '');
   });
 });

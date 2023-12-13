@@ -2,10 +2,16 @@
 pragma solidity ^0.8.21;
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {UniversalResolver} from "@ensdomains/ens-contracts/contracts/utils/UniversalResolver.sol";
+import {NameEncoder} from "@ensdomains/ens-contracts/contracts/utils/NameEncoder.sol";
+import {HexUtils} from "./utils/HexUtils.sol";
+import {StringUtils} from "./utils/StringUtils.sol";
 
 /**
  * @dev A child contract which will be deployed by the ERC20MultiDelegate utility contract
@@ -29,8 +35,14 @@ contract ERC20ProxyDelegator {
  */
 contract ERC20MultiDelegate is ERC1155, Ownable {
     using Address for address;
+    using NameEncoder for string;
+    using HexUtils for address;
+    using StringUtils for string;
 
     ERC20Votes public immutable token;
+    UniversalResolver public immutable metadataResolver;
+
+    error InvalidDelegateAddress();
 
     /** ### EVENTS ### */
 
@@ -45,13 +57,14 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     /**
      * @dev Constructor.
      * @param _token The ERC20 token address
-     * @param _metadata_uri ERC1155 metadata uri
+     * @param _metadataResolver The Universal Resolver address
      */
     constructor(
         ERC20Votes _token,
-        string memory _metadata_uri
-    ) ERC1155(_metadata_uri) {
+        UniversalResolver _metadataResolver
+    ) ERC1155("") {
         token = _token;
+        metadataResolver = _metadataResolver;
     }
 
     /**
@@ -106,19 +119,21 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             "Delegate: The number of amounts must be equal to the greater of the number of sources or targets"
         );
 
+        uint256 maxLength = Math.max(sourcesLength, targetsLength);
         // Iterate until all source and target delegates have been processed.
-        for (
-            uint transferIndex = 0;
-            transferIndex < Math.max(sourcesLength, targetsLength);
-        ) {
+        for (uint transferIndex = 0; transferIndex < maxLength; ) {
             address source = address(0);
             address target = address(0);
             if (transferIndex < sourcesLength) {
-                require((sources[transferIndex] >> 160) == 0, "Upper 96 bits of source uint256 must be zero");
+                if ((sources[transferIndex] >> 160) != 0) {
+                    revert InvalidDelegateAddress();
+                }
                 source = address(uint160(sources[transferIndex]));
             }
             if (transferIndex < targetsLength) {
-                require((targets[transferIndex] >> 160) == 0, "Upper 96 bits of target uint256 must be zero");
+                if ((targets[transferIndex] >> 160) != 0) {
+                    revert InvalidDelegateAddress();
+                }
                 target = address(uint160(targets[transferIndex]));
             }
 
@@ -135,7 +150,9 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                 _createProxyDelegatorAndTransfer(target, amount);
             }
 
-            unchecked { transferIndex++; }
+            unchecked {
+                transferIndex++;
+            }
         }
 
         if (sourcesLength > 0) {
@@ -175,9 +192,72 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         require(token.transferFrom(proxyAddressFrom, msg.sender, amount));
     }
 
-    function setUri(string memory uri) external onlyOwner {
-        _setURI(uri);
-        emit MetadataURIUpdated(uri);
+    /**
+     * @dev Generates an onchain metadata for a given tokenId.
+     *
+     * @param tokenId The token ID (address) of the delegate.
+     * @return Onchain metadata in base64 format "data:application/json;base64,<encoded-json>".
+     */
+    function tokenURI(uint256 tokenId) public view returns (string memory) {
+        // convert tokenId to a hex string representation of the address
+        string memory hexAddress = address(uint160(tokenId)).addressToHex();
+
+        // construct the encoded reversed name
+        bytes memory encodedReversedName = bytes.concat(
+            "\x28",
+            bytes(hexAddress),
+            "\x04addr\x07reverse\x00"
+        );
+
+        string memory resolvedName;
+        // attempt to resolve the reversed name using the metadataResolver
+        try metadataResolver.reverse(encodedReversedName) returns (
+            string memory _resolvedName,
+            address,
+            address,
+            address
+        ) {
+            resolvedName = _resolvedName;
+        } catch {}
+
+        string memory imageUri = "";
+
+        if (bytes(resolvedName).length > 0) {
+            (bytes memory encodedName, bytes32 namehash) = resolvedName
+                .dnsEncodeName();
+            bytes memory data = abi.encodeWithSignature(
+                "text(bytes32,string)",
+                [namehash, "avatar"]
+            );
+
+            // attempt to resolve the avatar using the universal resolver
+            try metadataResolver.resolve(encodedName, data) returns (
+                bytes memory _imageUri,
+                address
+            ) {
+                imageUri = _imageUri.length == 0
+                    ? ""
+                    : abi.decode(_imageUri, (string));
+            } catch {}
+        } else {
+            resolvedName = hexAddress;
+        }
+
+        string memory json = Base64.encode(
+            bytes(
+                string.concat(
+                    '{"name": "',
+                    resolvedName.escape(),
+                    " Delegate Token",
+                    '", "token_id": "',
+                    Strings.toString(tokenId),
+                    '", "description": "This NFT is a proof for your ENS delegation strategy.", "image": "',
+                    imageUri.escape(),
+                    '"}'
+                )
+            )
+        );
+        return string.concat("data:application/json;base64,", json);
     }
 
     function _createProxyDelegatorAndTransfer(
