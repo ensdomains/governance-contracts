@@ -76,16 +76,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      *   (EOA), or a contract that implements `ERC1155Holder`. Failure to meet these conditions
      *   will result in the transaction reverting. This may cause unintended reverts for multi-signature
      *   wallets or other interacting contracts.
-     */
-    function delegateMulti(
-        uint256[] calldata sources,
-        uint256[] calldata targets,
-        uint256[] calldata amounts
-    ) external {
-        _delegateMulti(sources, targets, amounts);
-    }
-
-    /**
+     *
      * Limitations:
      * - The function performs `_burnBatch` before `_mintBatch`, which means that the function
      *   will revert if the total amount being removed from a source is greater than the amount
@@ -98,11 +89,11 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * from Charlie before adding the 100 tokens from Alice.
      *
      */
-    function _delegateMulti(
+    function delegateMulti(
         uint256[] calldata sources,
         uint256[] calldata targets,
         uint256[] calldata amounts
-    ) internal {
+    ) external {
         uint256 sourcesLength = sources.length;
         uint256 targetsLength = targets.length;
         uint256 amountsLength = amounts.length;
@@ -270,7 +261,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address to,
         uint256 amount
     ) internal {
-        address proxyAddressFrom = _retrieveProxyContractAddress(token, from);
+        address proxyAddressFrom = _retrieveProxyContractAddress(from);
         address proxyAddressTo = _deployProxyDelegatorIfNeeded(to);
         require(token.transferFrom(proxyAddressFrom, proxyAddressTo, amount));
     }
