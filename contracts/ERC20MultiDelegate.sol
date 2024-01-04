@@ -172,7 +172,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address target,
         uint256 amount
     ) internal {
-        _deployProxyDelegatorIfNeeded(target);
         _transferBetweenDelegators(source, target, amount);
 
         emit DelegationProcessed(source, target, amount);
@@ -271,8 +270,8 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address to,
         uint256 amount
     ) internal {
-        address proxyAddressFrom = _retrieveProxyContractAddress(from);
-        address proxyAddressTo = _retrieveProxyContractAddress(to);
+        address proxyAddressFrom = _retrieveProxyContractAddress(token, from);
+        address proxyAddressTo = _deployProxyDelegatorIfNeeded(to);
         require(token.transferFrom(proxyAddressFrom, proxyAddressTo, amount));
     }
 
