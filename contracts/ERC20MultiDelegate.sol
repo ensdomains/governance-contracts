@@ -186,7 +186,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     function _reimburse(address source, uint256 amount) internal {
         // Transfer the remaining source amount or the full source amount
         // (if no remaining amount) to the delegator
-        address proxyAddressFrom = _retrieveProxyContractAddress(token, source);
+        address proxyAddressFrom = _retrieveProxyContractAddress(source);
         require(token.transferFrom(proxyAddressFrom, msg.sender, amount));
     }
 
@@ -271,15 +271,15 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address to,
         uint256 amount
     ) internal {
-        address proxyAddressFrom = _retrieveProxyContractAddress(token, from);
-        address proxyAddressTo = _retrieveProxyContractAddress(token, to);
+        address proxyAddressFrom = _retrieveProxyContractAddress(from);
+        address proxyAddressTo = _retrieveProxyContractAddress(to);
         require(token.transferFrom(proxyAddressFrom, proxyAddressTo, amount));
     }
 
     function _deployProxyDelegatorIfNeeded(
         address delegate
     ) internal returns (address) {
-        address proxyAddress = _retrieveProxyContractAddress(token, delegate);
+        address proxyAddress = _retrieveProxyContractAddress(delegate);
 
         // check if the proxy contract has already been deployed
         uint bytecodeSize;
@@ -296,12 +296,11 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     }
 
     function _retrieveProxyContractAddress(
-        ERC20Votes _token,
         address _delegate
     ) private view returns (address) {
         bytes memory bytecode = bytes.concat(
             type(ERC20ProxyDelegator).creationCode,
-            abi.encode(_token, _delegate)
+            abi.encode(token, _delegate)
         );
         bytes32 hash = keccak256(
             abi.encodePacked(
