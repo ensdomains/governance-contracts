@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
@@ -34,7 +33,6 @@ contract ERC20ProxyDelegator {
  * @dev A utility contract to let delegators to pick multiple delegate
  */
 contract ERC20MultiDelegate is ERC1155, Ownable {
-    using Address for address;
     using NameEncoder for string;
     using HexUtils for address;
     using StringUtils for string;
