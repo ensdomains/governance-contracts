@@ -108,9 +108,8 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             "Delegate: The number of amounts must be equal to the greater of the number of sources or targets"
         );
 
-        uint256 maxLength = Math.max(sourcesLength, targetsLength);
         // Iterate until all source and target delegates have been processed.
-        for (uint transferIndex = 0; transferIndex < maxLength; ) {
+        for (uint transferIndex = 0; transferIndex < amountsLength; ) {
             address source = address(0);
             address target = address(0);
             if (transferIndex < sourcesLength) {
