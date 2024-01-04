@@ -297,12 +297,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         return proxyAddress;
     }
 
-    function _getBalanceForDelegate(
-        address delegate
-    ) internal view returns (uint256) {
-        return balanceOf(msg.sender, uint256(uint160(delegate)));
-    }
-
     function _retrieveProxyContractAddress(
         ERC20Votes _token,
         address _delegate
