@@ -108,39 +108,75 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             "Delegate: The number of amounts must be equal to the greater of the number of sources or targets"
         );
 
-        uint256 minLength = Math.min(sourcesLength, targetsLength);
-        // Iterate until all source and target delegates have been processed.
-        for (uint transferIndex = 0; transferIndex < amountsLength; ) {
-            address source = address(0);
-            address target = address(0);
-            if (transferIndex < sourcesLength) {
-                if ((sources[transferIndex] >> 160) != 0) {
-                    revert InvalidDelegateAddress();
-                }
-                source = address(uint160(sources[transferIndex]));
-            }
-            if (transferIndex < targetsLength) {
-                if ((targets[transferIndex] >> 160) != 0) {
-                    revert InvalidDelegateAddress();
-                }
-                target = address(uint160(targets[transferIndex]));
-            }
+        uint256 minSourcesTargetsLength = Math.min(
+            sourcesLength,
+            targetsLength
+        );
+        for (
+            uint transferIndex = 0;
+            transferIndex < minSourcesTargetsLength;
 
+        ) {
+            uint256 sourceInt = sources[transferIndex];
+            uint256 targetInt = targets[transferIndex];
             uint256 amount = amounts[transferIndex];
 
-            if (transferIndex < minLength) {
-                // Process the delegation transfer between the current source and target delegate pair.
-                _processDelegation(source, target, amount);
-            } else if (transferIndex < sourcesLength) {
-                // Handle any remaining source amounts after the transfer process.
-                _reimburse(source, amount);
-            } else if (transferIndex < targetsLength) {
-                // Handle any remaining target amounts after the transfer process.
-                _createProxyDelegatorAndTransfer(target, amount);
+            if ((sourceInt >> 160) != 0) {
+                revert InvalidDelegateAddress();
             }
+            address source = address(uint160(sourceInt));
 
+            if ((targetInt >> 160) != 0) {
+                revert InvalidDelegateAddress();
+            }
+            address target = address(uint160(targetInt));
+
+            _processDelegation(source, target, amount);
             unchecked {
                 transferIndex++;
+            }
+        }
+
+        // Handle any remaining source amounts after the transfer process.
+        if (sourcesLength > targetsLength) {
+            // Handle any remaining source amounts after the transfer process.
+            for (
+                uint transferIndex = minSourcesTargetsLength;
+                transferIndex < sourcesLength;
+
+            ) {
+                uint256 sourceInt = sources[transferIndex];
+                uint256 amount = amounts[transferIndex];
+
+                if ((sourceInt >> 160) != 0) {
+                    revert InvalidDelegateAddress();
+                }
+                address source = address(uint160(sourceInt));
+
+                _reimburse(source, amount);
+                unchecked {
+                    transferIndex++;
+                }
+            }
+        } else {
+            // Handle any remaining target amounts after the transfer process.
+            for (
+                uint transferIndex = minSourcesTargetsLength;
+                transferIndex < targetsLength;
+
+            ) {
+                uint256 targetInt = targets[transferIndex];
+                uint256 amount = amounts[transferIndex];
+
+                if ((targetInt >> 160) != 0) {
+                    revert InvalidDelegateAddress();
+                }
+                address target = address(uint160(targetInt));
+
+                _createProxyDelegatorAndTransfer(target, amount);
+                unchecked {
+                    transferIndex++;
+                }
             }
         }
 
