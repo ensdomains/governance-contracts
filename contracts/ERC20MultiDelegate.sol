@@ -40,7 +40,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     ERC20Votes public immutable token;
     UniversalResolver public immutable metadataResolver;
 
-    error InvalidDelegateAddress();
+    error InvalidDelegateAddress(uint256);
 
     /** ### EVENTS ### */
 
@@ -111,32 +111,50 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         uint256 minLength = Math.min(sourcesLength, targetsLength);
         // Iterate until all source and target delegates have been processed.
         for (uint transferIndex = 0; transferIndex < amountsLength; ) {
-            address source = address(0);
-            address target = address(0);
+            address source;
+            address target;
+            address proxyAddressSource;
+            address proxyAddressTarget;
             if (transferIndex < sourcesLength) {
-                if ((sources[transferIndex] >> 160) != 0) {
-                    revert InvalidDelegateAddress();
+                uint256 sourceInt = sources[transferIndex];
+                if ((sourceInt >> 160) != 0) {
+                    revert InvalidDelegateAddress(sourceInt);
                 }
-                source = address(uint160(sources[transferIndex]));
+                source = address(uint160(sourceInt));
+                proxyAddressSource = _retrieveProxyContractAddress(source);
             }
             if (transferIndex < targetsLength) {
-                if ((targets[transferIndex] >> 160) != 0) {
-                    revert InvalidDelegateAddress();
+                uint256 targetInt = targets[transferIndex];
+                if ((targetInt >> 160) != 0) {
+                    revert InvalidDelegateAddress(targetInt);
                 }
-                target = address(uint160(targets[transferIndex]));
+                target = address(uint160(targetInt));
+                proxyAddressTarget = _deployProxyDelegatorIfNeeded(target);
             }
 
             uint256 amount = amounts[transferIndex];
 
             if (transferIndex < minLength) {
                 // Process the delegation transfer between the current source and target delegate pair.
-                _processDelegation(source, target, amount);
+                require(
+                    token.transferFrom(
+                        proxyAddressSource,
+                        proxyAddressTarget,
+                        amount
+                    )
+                );
+
+                emit DelegationProcessed(source, target, amount);
             } else if (transferIndex < sourcesLength) {
                 // Handle any remaining source amounts after the transfer process.
-                _reimburse(source, amount);
+                require(
+                    token.transferFrom(proxyAddressSource, msg.sender, amount)
+                );
             } else if (transferIndex < targetsLength) {
                 // Handle any remaining target amounts after the transfer process.
-                _createProxyDelegatorAndTransfer(target, amount);
+                require(
+                    token.transferFrom(msg.sender, proxyAddressTarget, amount)
+                );
             }
 
             unchecked {
@@ -150,34 +168,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         if (targetsLength > 0) {
             _mintBatch(msg.sender, targets, amounts[:targetsLength], "");
         }
-    }
-
-    /**
-     * @dev Processes the delegation transfer between a source delegate and a target delegate.
-     * @param source The source delegate from which tokens are being withdrawn.
-     * @param target The target delegate to which tokens are being transferred.
-     * @param amount The amount of tokens transferred between the source and target delegates.
-     */
-    function _processDelegation(
-        address source,
-        address target,
-        uint256 amount
-    ) internal {
-        _transferBetweenDelegators(source, target, amount);
-
-        emit DelegationProcessed(source, target, amount);
-    }
-
-    /**
-     * @dev Reimburses any remaining source amounts back to the delegator after the delegation transfer process.
-     * @param source The source delegate from which tokens are being withdrawn.
-     * @param amount The amount of tokens to be withdrawn from the source delegate.
-     */
-    function _reimburse(address source, uint256 amount) internal {
-        // Transfer the remaining source amount or the full source amount
-        // (if no remaining amount) to the delegator
-        address proxyAddressFrom = _retrieveProxyContractAddress(source);
-        require(token.transferFrom(proxyAddressFrom, msg.sender, amount));
     }
 
     /**
@@ -246,24 +236,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             )
         );
         return string.concat("data:application/json;base64,", json);
-    }
-
-    function _createProxyDelegatorAndTransfer(
-        address target,
-        uint256 amount
-    ) internal {
-        address proxyAddress = _deployProxyDelegatorIfNeeded(target);
-        require(token.transferFrom(msg.sender, proxyAddress, amount));
-    }
-
-    function _transferBetweenDelegators(
-        address from,
-        address to,
-        uint256 amount
-    ) internal {
-        address proxyAddressFrom = _retrieveProxyContractAddress(from);
-        address proxyAddressTo = _deployProxyDelegatorIfNeeded(to);
-        require(token.transferFrom(proxyAddressFrom, proxyAddressTo, amount));
     }
 
     function _deployProxyDelegatorIfNeeded(
