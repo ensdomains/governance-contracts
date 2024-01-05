@@ -40,7 +40,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     ERC20Votes public immutable token;
     UniversalResolver public immutable metadataResolver;
 
-    error InvalidDelegateAddress();
+    error InvalidDelegateAddress(uint256);
 
     /** ### EVENTS ### */
 
@@ -122,12 +122,12 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             uint256 amount = amounts[transferIndex];
 
             if ((sourceInt >> 160) != 0) {
-                revert InvalidDelegateAddress();
+                revert InvalidDelegateAddress(sourceInt);
             }
             address source = address(uint160(sourceInt));
 
             if ((targetInt >> 160) != 0) {
-                revert InvalidDelegateAddress();
+                revert InvalidDelegateAddress(targetInt);
             }
             address target = address(uint160(targetInt));
 
@@ -149,7 +149,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                 uint256 amount = amounts[transferIndex];
 
                 if ((sourceInt >> 160) != 0) {
-                    revert InvalidDelegateAddress();
+                    revert InvalidDelegateAddress(sourceInt);
                 }
                 address source = address(uint160(sourceInt));
 
@@ -169,7 +169,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                 uint256 amount = amounts[transferIndex];
 
                 if ((targetInt >> 160) != 0) {
-                    revert InvalidDelegateAddress();
+                    revert InvalidDelegateAddress(targetInt);
                 }
                 address target = address(uint160(targetInt));
 

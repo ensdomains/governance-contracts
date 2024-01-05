@@ -276,7 +276,7 @@ describe('ENS Multi Delegate', () => {
           ],
           [delegatorTokenAmount]
         )
-      ).to.be.revertedWith('InvalidDelegateAddress()');
+      ).to.be.revertedWith('InvalidDelegateAddress(115339776388732929035197660849917252472676939519258848623682632494078702215427)');
     });
   });
 
@@ -597,7 +597,7 @@ describe('ENS Multi Delegate', () => {
 
       await expect(
         multiDelegate.delegateMulti(sources, targets, newAmounts)
-      ).to.be.revertedWith('InvalidDelegateAddress()');
+      ).to.be.revertedWith('InvalidDelegateAddress(115339776388732929035197660849888570009004220556316786536417127903990864487014)');
     });
   });
 
