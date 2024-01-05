@@ -133,7 +133,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
             _processDelegation(source, target, amount);
             unchecked {
-                transferIndex++;
+                ++transferIndex;
             }
         }
 
@@ -155,7 +155,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
                 _reimburse(source, amount);
                 unchecked {
-                    transferIndex++;
+                    ++transferIndex;
                 }
             }
         } else {
@@ -175,7 +175,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
                 _createProxyDelegatorAndTransfer(target, amount);
                 unchecked {
-                    transferIndex++;
+                    ++transferIndex;
                 }
             }
         }
