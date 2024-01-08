@@ -76,16 +76,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      *   (EOA), or a contract that implements `ERC1155Holder`. Failure to meet these conditions
      *   will result in the transaction reverting. This may cause unintended reverts for multi-signature
      *   wallets or other interacting contracts.
-     */
-    function delegateMulti(
-        uint256[] calldata sources,
-        uint256[] calldata targets,
-        uint256[] calldata amounts
-    ) external {
-        _delegateMulti(sources, targets, amounts);
-    }
-
-    /**
+     *
      * Limitations:
      * - The function performs `_burnBatch` before `_mintBatch`, which means that the function
      *   will revert if the total amount being removed from a source is greater than the amount
@@ -98,11 +89,11 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * from Charlie before adding the 100 tokens from Alice.
      *
      */
-    function _delegateMulti(
+    function delegateMulti(
         uint256[] calldata sources,
         uint256[] calldata targets,
         uint256[] calldata amounts
-    ) internal {
+    ) external {
         uint256 sourcesLength = sources.length;
         uint256 targetsLength = targets.length;
         uint256 amountsLength = amounts.length;
@@ -117,9 +108,9 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             "Delegate: The number of amounts must be equal to the greater of the number of sources or targets"
         );
 
-        uint256 maxLength = Math.max(sourcesLength, targetsLength);
+        uint256 minLength = Math.min(sourcesLength, targetsLength);
         // Iterate until all source and target delegates have been processed.
-        for (uint transferIndex = 0; transferIndex < maxLength; ) {
+        for (uint transferIndex = 0; transferIndex < amountsLength; ) {
             address source = address(0);
             address target = address(0);
             if (transferIndex < sourcesLength) {
@@ -137,7 +128,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
             uint256 amount = amounts[transferIndex];
 
-            if (transferIndex < Math.min(sourcesLength, targetsLength)) {
+            if (transferIndex < minLength) {
                 // Process the delegation transfer between the current source and target delegate pair.
                 _processDelegation(source, target, amount);
             } else if (transferIndex < sourcesLength) {
@@ -172,7 +163,6 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address target,
         uint256 amount
     ) internal {
-        _deployProxyDelegatorIfNeeded(target);
         _transferBetweenDelegators(source, target, amount);
 
         emit DelegationProcessed(source, target, amount);
@@ -186,7 +176,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     function _reimburse(address source, uint256 amount) internal {
         // Transfer the remaining source amount or the full source amount
         // (if no remaining amount) to the delegator
-        address proxyAddressFrom = _retrieveProxyContractAddress(token, source);
+        address proxyAddressFrom = _retrieveProxyContractAddress(source);
         require(token.transferFrom(proxyAddressFrom, msg.sender, amount));
     }
 
@@ -271,15 +261,15 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         address to,
         uint256 amount
     ) internal {
-        address proxyAddressFrom = _retrieveProxyContractAddress(token, from);
-        address proxyAddressTo = _retrieveProxyContractAddress(token, to);
+        address proxyAddressFrom = _retrieveProxyContractAddress(from);
+        address proxyAddressTo = _deployProxyDelegatorIfNeeded(to);
         require(token.transferFrom(proxyAddressFrom, proxyAddressTo, amount));
     }
 
     function _deployProxyDelegatorIfNeeded(
         address delegate
     ) internal returns (address) {
-        address proxyAddress = _retrieveProxyContractAddress(token, delegate);
+        address proxyAddress = _retrieveProxyContractAddress(delegate);
 
         // check if the proxy contract has already been deployed
         uint bytecodeSize;
@@ -296,12 +286,11 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     }
 
     function _retrieveProxyContractAddress(
-        ERC20Votes _token,
         address _delegate
     ) private view returns (address) {
         bytes memory bytecode = bytes.concat(
             type(ERC20ProxyDelegator).creationCode,
-            abi.encode(_token, _delegate)
+            abi.encode(token, _delegate)
         );
         bytes32 hash = keccak256(
             abi.encodePacked(
