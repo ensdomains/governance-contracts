@@ -24,7 +24,7 @@ if (process.env.DEPLOYER_KEY) {
 }
 
 module.exports = {
-  solidity: '0.8.7',
+  solidity: '0.8.21',
   settings: {
     optimizer: {
       enabled: true, // runs: 200 by default

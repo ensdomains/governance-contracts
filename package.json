@@ -10,8 +10,8 @@
   "author": "ENS Team (@ensdomains)",
   "license": "MIT",
   "dependencies": {
-    "@ensdomains/ens-contracts": "^0.0.7",
-    "@openzeppelin/contracts": "^4.3.1",
+    "@ensdomains/ens-contracts": "^0.0.22",
+    "@openzeppelin/contracts": "^4.9.3",
     "keccak256": "^1.0.3"
   },
   "devDependencies": {
@@ -21,11 +21,11 @@
     "chai": "^4.3.4",
     "dotenv": "^10.0.0",
     "ethereum-waffle": "^3.4.0",
-    "ethers": "^5.4.6",
-    "hardhat": "^2.6.3",
-    "hardhat-deploy": "^0.9.1",
-    "hardhat-gas-reporter": "^1.0.8",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.18.1",
+    "hardhat-deploy": "^0.11.43",
+    "hardhat-gas-reporter": "^1.0.9",
     "merkletreejs": "^0.2.24",
-    "solidity-coverage": "^0.8.2"
+    "solidity-coverage": "^0.8.5"
   }
 }
