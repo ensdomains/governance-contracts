@@ -215,7 +215,8 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                 .dnsEncodeName();
             bytes memory data = abi.encodeWithSignature(
                 "text(bytes32,string)",
-                [namehash, "avatar"]
+                namehash,
+                "avatar"
             );
 
             // attempt to resolve the avatar using the universal resolver
@@ -228,7 +229,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                     : abi.decode(_imageUri, (string));
             } catch {}
         } else {
-            resolvedName = hexAddress;
+            resolvedName = string.concat("0x", hexAddress);
         }
 
         string memory json = Base64.encode(
