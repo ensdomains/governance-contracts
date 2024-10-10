@@ -128,15 +128,18 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
             uint256 amount = amounts[transferIndex];
 
-            if (transferIndex < minLength) {
-                // Process the delegation transfer between the current source and target delegate pair.
-                _processDelegation(source, target, amount);
-            } else if (transferIndex < sourcesLength) {
-                // Handle any remaining source amounts after the transfer process.
-                _reimburse(source, amount);
-            } else if (transferIndex < targetsLength) {
-                // Handle any remaining target amounts after the transfer process.
-                _createProxyDelegatorAndTransfer(target, amount);
+            // Skip processing if the amount is zero or if the source and target are the same
+            if (amount > 0 && source != target) {
+                if (transferIndex < minLength) {
+                    // Process the delegation transfer between the current source and target delegate pair.
+                    _processDelegation(source, target, amount);
+                } else if (transferIndex < sourcesLength) {
+                    // Handle any remaining source amounts after the transfer process.
+                    _reimburse(source, amount);
+                } else if (transferIndex < targetsLength) {
+                    // Handle any remaining target amounts after the transfer process.
+                    _createProxyDelegatorAndTransfer(target, amount);
+                }
             }
 
             unchecked {
@@ -178,6 +181,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         // (if no remaining amount) to the delegator
         address proxyAddressFrom = _retrieveProxyContractAddress(source);
         require(token.transferFrom(proxyAddressFrom, msg.sender, amount));
+        emit DelegationProcessed(source, msg.sender, amount);
     }
 
     /**
@@ -255,6 +259,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     ) internal {
         address proxyAddress = _deployProxyDelegatorIfNeeded(target);
         require(token.transferFrom(msg.sender, proxyAddress, amount));
+        emit DelegationProcessed(msg.sender, target, amount);
     }
 
     function _transferBetweenDelegators(
