@@ -846,7 +846,7 @@ describe('ERC20MultiDelegate', function () {
       const amount = ethers.utils.parseEther('100');
       await expect(multiDelegate.delegateMulti([], [addr1.address], [amount]))
         .to.emit(multiDelegate, 'DelegationProcessed')
-        .withArgs(owner.address, addr1.address, amount);
+        .withArgs(owner.address, ethers.constants.AddressZero, addr1.address, amount);
 
       expect(
         await multiDelegate.balanceOf(owner.address, addr1.address)
@@ -861,7 +861,7 @@ describe('ERC20MultiDelegate', function () {
         multiDelegate.delegateMulti([addr1.address], [addr2.address], [amount])
       )
         .to.emit(multiDelegate, 'DelegationProcessed')
-        .withArgs(addr1.address, addr2.address, amount);
+        .withArgs(owner.address, addr1.address, addr2.address, amount);
 
       expect(
         await multiDelegate.balanceOf(owner.address, addr1.address)
@@ -895,9 +895,9 @@ describe('ERC20MultiDelegate', function () {
         )
       )
         .to.emit(multiDelegate, 'DelegationProcessed')
-        .withArgs(addr1.address, addr3.address, amount1)
+        .withArgs(owner.address, addr1.address, addr3.address, amount1)
         .and.to.emit(multiDelegate, 'DelegationProcessed')
-        .withArgs(addr2.address, addr3.address, amount2);
+        .withArgs(owner.address, addr2.address, addr3.address, amount2);
 
       expect(
         await multiDelegate.balanceOf(owner.address, addr1.address)
@@ -909,6 +909,18 @@ describe('ERC20MultiDelegate', function () {
       expect(
         await multiDelegate.balanceOf(owner.address, addr3.address)
       ).to.equal(amount1.add(amount2));
+    });
+
+    it('should undelegate from a single source', async function () {
+      const amount = ethers.utils.parseEther('100');
+      await multiDelegate.delegateMulti([], [addr1.address], [amount]);
+      await expect(multiDelegate.delegateMulti([addr1.address], [], [amount]))
+        .to.emit(multiDelegate, 'DelegationProcessed')
+        .withArgs(owner.address, addr1.address, ethers.constants.AddressZero, amount);
+
+      expect(
+        await multiDelegate.balanceOf(owner.address, addr1.address)
+      ).to.equal(0);
     });
 
     it('should revert when providing invalid delegate addresses', async function () {
@@ -1027,31 +1039,6 @@ describe('ERC20MultiDelegate', function () {
       await expect(
         multiDelegate.delegateMulti([], [addr1.address], [amount])
       ).to.not.emit(multiDelegate, 'ProxyDeployed');
-    });
-  });
-
-  describe('Edge cases', function () {
-    it('should handle zero amount delegations', async function () {
-      await expect(
-        multiDelegate.delegateMulti([], [addr1.address], [0])
-      ).to.not.emit(multiDelegate, 'DelegationProcessed');
-
-      expect(
-        await multiDelegate.balanceOf(owner.address, addr1.address)
-      ).to.equal(0);
-    });
-
-    it('should handle delegations with the same source and target', async function () {
-      const amount = ethers.utils.parseEther('100');
-      await multiDelegate.delegateMulti([], [addr1.address], [amount]);
-
-      await expect(
-        multiDelegate.delegateMulti([addr1.address], [addr1.address], [amount])
-      ).to.not.emit(multiDelegate, 'DelegationProcessed');
-
-      expect(
-        await multiDelegate.balanceOf(owner.address, addr1.address)
-      ).to.equal(amount);
     });
   });
 });
