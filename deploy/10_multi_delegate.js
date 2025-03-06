@@ -1,17 +1,27 @@
-module.exports = async ({getNamedAccounts, deployments}) => {
+module.exports = async ({getNamedAccounts, deployments, network}) => {
   const {deploy} = deployments;
   const {deployer} = await getNamedAccounts();
   const ensToken = await ethers.getContract('ENSToken');
-  const UNIVERSAL_RESOLVER = '';
+  
+  // For test networks, use the address from our test deployment
+  // For other networks, try to get address from @ensdomains/ens-contracts
+  let universalResolverAddress = '';
+  
+  if (network.tags.test) {
+    const universalResolver = await deployments.getOrNull('UniversalResolver');
+    if (universalResolver) {
+      universalResolverAddress = universalResolver.address;
+    }
+  }
 
   await deploy('ERC20MultiDelegate', {
     from: deployer,
     args: [
       ensToken.address,
-      UNIVERSAL_RESOLVER
+      universalResolverAddress
     ],
     log: true,
   });
 };
 module.exports.tags = ['ERC20MultiDelegate'];
-module.exports.dependencies = ['ENSToken'];
+module.exports.dependencies = ['ENSToken', 'test-dependencies'];

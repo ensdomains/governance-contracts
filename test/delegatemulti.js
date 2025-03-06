@@ -102,19 +102,18 @@ describe('ENS Multi Delegate', () => {
   beforeEach(async () => {
     snapshot = await ethers.provider.send('evm_snapshot', []);
 
-    await deployments.fixture(['ENSToken']);
+    // Use fixture to deploy all contracts
+    await deployments.fixture(['ENSToken', 'test-dependencies', 'ERC20MultiDelegate']);
+    
+    // Get deployed contracts
     token = await ethers.getContract('ENSToken');
+    registry = await ethers.getContract('ENSRegistry');
+    reverseRegistrar = await ethers.getContract('ReverseRegistrar');
+    resolver = await ethers.getContract('PublicResolver');
+    universalResolver = await ethers.getContract('UniversalResolver');
+    multiDelegate = await ethers.getContract('ERC20MultiDelegate');
 
-    const Registry = await ethers.getContractFactory('ENSRegistry');
-    registry = await Registry.deploy();
-    await registry.deployed();
-
-    const ReverseRegistrar = await ethers.getContractFactory(
-      'ReverseRegistrar'
-    );
-    reverseRegistrar = await ReverseRegistrar.deploy(registry.address);
-    await reverseRegistrar.deployed();
-
+    // Set up ENS registry
     await registry.setSubnodeOwner(ROOT_NODE, sha3('reverse'), deployer);
     await registry.setSubnodeOwner(
       namehash.hash('reverse'),
@@ -122,33 +121,7 @@ describe('ENS Multi Delegate', () => {
       reverseRegistrar.address
     );
 
-    const Resolver = await ethers.getContractFactory('PublicResolver');
-    resolver = await Resolver.deploy(
-      registry.address,
-      ethers.constants.AddressZero,
-      ethers.constants.AddressZero,
-      reverseRegistrar.address
-    );
-    await resolver.deployed();
-
     await reverseRegistrar.setDefaultResolver(resolver.address);
-
-    const UniversalResolver = await ethers.getContractFactory(
-      'UniversalResolver'
-    );
-    universalResolver = await UniversalResolver.deploy(registry.address, [
-      'http://localhost:8080/',
-    ]);
-    await universalResolver.deployed();
-
-    const ENSMultiDelegate = await ethers.getContractFactory(
-      'ERC20MultiDelegate'
-    );
-    multiDelegate = await ENSMultiDelegate.deploy(
-      token.address,
-      universalResolver.address
-    );
-    await multiDelegate.deployed();
 
     await registry.setSubnodeOwner(ROOT_NODE, labelHash, deployer);
     await registry.setResolver(node, resolver.address);
@@ -803,12 +776,15 @@ describe('ERC20MultiDelegate', function () {
     token = await MockERC20Votes.deploy('MockToken', 'MTK');
     await token.deployed();
 
-    // deploy mock UniversalResolver
+    // deploy mock UniversalResolver using fully qualified name
     const MockUniversalResolver = await ethers.getContractFactory(
-      'MockUniversalResolver'
+      'contracts/test/MockUniversalResolver.sol:MockUniversalResolver'
     );
     resolver = await MockUniversalResolver.deploy();
     await resolver.deployed();
+    
+    // Make sure the resolver is properly initialized
+    await resolver.setName(addr1.address, "test.eth");
 
     // deploy ERC20MultiDelegate
     const ERC20MultiDelegateFactory = await ethers.getContractFactory(
@@ -972,6 +948,10 @@ describe('ERC20MultiDelegate', function () {
     it('should handle unresolved names', async function () {
       const delegateAddress = addr1.address;
       const tokenId = delegateAddress;
+      
+      // Set the resolver to return empty name for this test
+      await resolver.setShouldReturnEmptyName(true);
+      
       const uri = await multiDelegate.tokenURI(tokenId);
 
       expect(uri).to.include('data:application/json;base64,');
@@ -985,6 +965,9 @@ describe('ERC20MultiDelegate', function () {
         ethers.BigNumber.from(tokenId).toString()
       );
       expect(metadata.image).to.equal('');
+      
+      // Reset the resolver for other tests
+      await resolver.setShouldReturnEmptyName(false);
     });
   });
 

@@ -26,42 +26,26 @@ describe('ENS delegate', () => {
   });
 
   beforeEach(async () => {
-    await deployments.fixture(['ENSToken']);
+    // Use fixture to deploy all contracts
+    await deployments.fixture(['ENSToken', 'test-dependencies']);
+    
+    // Get deployed contracts
     token = await ethers.getContract('ENSToken');
-
-    const Registry = await ethers.getContractFactory('ENSRegistry');
-    registry = await Registry.deploy();
-    await registry.deployed();
-
-    const ReverseRegistrar = await ethers.getContractFactory(
-      'ReverseRegistrar'
-    );
-    reverseRegistrar = await ReverseRegistrar.deploy(registry.address);
-    await reverseRegistrar.deployed();
-
-    await registry.setSubnodeOwner(
-      '0x0000000000000000000000000000000000000000000000000000000000000000',
-      sha3('reverse'),
-      deployer
-    );
+    registry = await ethers.getContract('ENSRegistry');
+    reverseRegistrar = await ethers.getContract('ReverseRegistrar');
+    resolver = await ethers.getContract('PublicResolver');
+    
+    // Deploy ENSDelegateLookup contract
+    const ENSDelegate = await ethers.getContractFactory('ENSDelegateLookup');
+    delegate = await ENSDelegate.deploy(registry.address, token.address);
+    
+    // Set up ENS registry
+    await registry.setSubnodeOwner(ROOT_NODE, sha3('reverse'), deployer);
     await registry.setSubnodeOwner(
       namehash.hash('reverse'),
       sha3('addr'),
       reverseRegistrar.address
     );
-
-    const Resolver = await ethers.getContractFactory('PublicResolver');
-    resolver = await Resolver.deploy(
-      registry.address,
-      ethers.constants.AddressZero,
-      ethers.constants.AddressZero,
-      ethers.constants.AddressZero
-    );
-    await resolver.deployed();
-
-    const ENSDelegate = await ethers.getContractFactory('ENSDelegateLookup');
-    delegate = await ENSDelegate.deploy(registry.address, token.address);
-    await registry.deployed();
 
     await registry.setSubnodeOwner(ROOT_NODE, labelHash, deployer);
     await registry.setResolver(node, resolver.address);
