@@ -10,7 +10,7 @@
   "author": "ENS Team (@ensdomains)",
   "license": "MIT",
   "dependencies": {
-    "@ensdomains/ens-contracts": "1.2.5",
+    "@ensdomains/ens-contracts": "^1.2.5",
     "@openzeppelin/contracts": "^4.9.3",
     "keccak256": "^1.0.3"
   },

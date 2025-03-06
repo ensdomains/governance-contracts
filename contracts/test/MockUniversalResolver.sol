@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract MockUniversalResolver {
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "./IUniversalResolver.sol";
+
+/**
+ * A simplified mock of the UniversalResolver contract for testing purposes.
+ * This mock implements only the methods needed for the ERC20MultiDelegate contract.
+ */
+contract MockUniversalResolver is IUniversalResolver, ERC165 {
     mapping(address => string) public names;
     mapping(string => string) public avatars;
     bool public shouldReturnEmptyName = false;
@@ -18,7 +25,11 @@ contract MockUniversalResolver {
         shouldReturnEmptyName = value;
     }
     
-    function reverse(bytes memory) public view returns (
+    /**
+     * Mock implementation of reverse resolution
+     * This method is called by ERC20MultiDelegate.tokenURI to resolve an address to a name
+     */
+    function reverse(bytes calldata) external view override returns (
         string memory resolvedName,
         address resolvedAddress,
         address reverseResolver,
@@ -33,7 +44,11 @@ contract MockUniversalResolver {
         }
     }
     
-    function resolve(bytes memory, bytes memory) public view returns (
+    /**
+     * Mock implementation of resolve with metadata
+     * This method is called by ERC20MultiDelegate.tokenURI to resolve a name to avatar data
+     */
+    function resolve(bytes calldata, bytes calldata) external view override returns (
         bytes memory result,
         address resolverAddress
     ) {
@@ -44,5 +59,15 @@ contract MockUniversalResolver {
             // Return avatar URL for the "should return the correct token URI" test
             return (abi.encode("https://example.com/avatar.png"), address(0));
         }
+    }
+    
+    /**
+     * Mock implementation of supportsInterface
+     * This method is used to check if the contract supports specific interfaces
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IUniversalResolver).interfaceId || 
+               interfaceId == 0x9061b923 || // IExtendedResolver
+               super.supportsInterface(interfaceId);
     }
 }

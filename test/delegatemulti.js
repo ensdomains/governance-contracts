@@ -776,7 +776,7 @@ describe('ERC20MultiDelegate', function () {
     token = await MockERC20Votes.deploy('MockToken', 'MTK');
     await token.deployed();
 
-    // deploy mock UniversalResolver using fully qualified name
+    // Deploy mock UniversalResolver for this test
     const MockUniversalResolver = await ethers.getContractFactory(
       'contracts/test/MockUniversalResolver.sol:MockUniversalResolver'
     );
@@ -965,9 +965,6 @@ describe('ERC20MultiDelegate', function () {
         ethers.BigNumber.from(tokenId).toString()
       );
       expect(metadata.image).to.equal('');
-      
-      // Reset the resolver for other tests
-      await resolver.setShouldReturnEmptyName(false);
     });
   });
 

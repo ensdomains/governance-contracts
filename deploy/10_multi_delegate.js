@@ -10,9 +10,10 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
   if (network.tags.test) {
     // For test networks, use our mock UniversalResolver
     const universalResolver = await deployments.getOrNull('UniversalResolver');
-    if (universalResolver) {
-      universalResolverAddress = universalResolver.address;
+    if (!universalResolver) {
+      throw new Error('UniversalResolver not deployed. Make sure to run the test dependencies deployment first.');
     }
+    universalResolverAddress = universalResolver.address;
   } else {
     try {
       // For non-test networks, get the universal resolver address from @ensdomains/ens-contracts
@@ -24,9 +25,11 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
         universalResolverAddress = universalResolverDeployment.address;
       } catch (deploymentError) {
         console.log(`No UniversalResolver deployment found for network ${networkName}`);
+        throw deploymentError; // Re-throw the error to halt the deployment
       }
     } catch (error) {
       console.log(`Error fetching UniversalResolver address: ${error.message}`);
+      throw error; // Re-throw the error to halt the deployment
     }
   }
 

@@ -48,17 +48,10 @@ describe("Merkle Airdrop", () => {
         ({deployer} = await getNamedAccounts());
         const signers = await ethers.getSigners();
         tree = ShardedMerkleTree.fromFiles('airdrops/hardhat');
-        
-        // Use fixture to deploy ENSToken
         await deployments.fixture(['ENSToken']);
-        
-        // Get token contract
         token = await ethers.getContract("ENSToken");
-        
-        // Deploy MerkleAirdrop manually
         const MerkleAirdrop = await ethers.getContractFactory("MerkleAirdrop");
         airdrop = await MerkleAirdrop.deploy(deployer, token.address, tree.root);
-        
         await token.approve(airdrop.address, tree.total);
     });
 
