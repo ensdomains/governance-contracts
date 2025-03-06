@@ -27,7 +27,7 @@ describe('ENS delegate', () => {
 
   beforeEach(async () => {
     // Use fixture to deploy all contracts
-    await deployments.fixture(['ENSToken', 'test-dependencies']);
+    await deployments.fixture(['ENSToken', 'ens-contracts']);
     
     // Get deployed contracts
     token = await ethers.getContract('ENSToken');

@@ -4,38 +4,40 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
   const {deploy} = deployments;
   const {deployer} = await getNamedAccounts();
   
-  // Only deploy mock ENS contracts on test networks
+  // Only deploy ENS contracts on test networks
   if (!network.tags.test) {
     return;
   }
   
-  // Deploy MockENSRegistry
+  // Deploy ENSRegistry (using the real contract)
   await deploy('ENSRegistry', {
     from: deployer,
-    contract: 'MockENSRegistry',
+    contract: 'ENSRegistry',
     args: [],
     log: true,
   });
   
   const registry = await ethers.getContract('ENSRegistry');
   
-  // Deploy MockReverseRegistrar
+  // Deploy ReverseRegistrar (using the real contract)
   await deploy('ReverseRegistrar', {
     from: deployer,
-    contract: 'MockReverseRegistrar',
+    contract: 'ReverseRegistrar',
     args: [registry.address],
     log: true,
   });
   
-  // Deploy MockPublicResolver
+  // Deploy PublicResolver (using mock for tests)
+  // We use the mock because the real PublicResolver has complex dependencies
+  // including ReverseClaimer which causes issues in the test environment
   await deploy('PublicResolver', {
     from: deployer,
-    contract: 'MockPublicResolver',
+    contract: 'contracts/test/MockPublicResolver.sol:MockPublicResolver',
     args: [registry.address],
     log: true,
   });
   
-  // Deploy MockUniversalResolver
+  // Deploy UniversalResolver (still using mock for tests)
   await deploy('UniversalResolver', {
     from: deployer,
     contract: 'contracts/test/MockUniversalResolver.sol:MockUniversalResolver',

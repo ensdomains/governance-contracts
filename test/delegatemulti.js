@@ -103,7 +103,7 @@ describe('ENS Multi Delegate', () => {
     snapshot = await ethers.provider.send('evm_snapshot', []);
 
     // Use fixture to deploy all contracts
-    await deployments.fixture(['ENSToken', 'test-dependencies', 'ERC20MultiDelegate']);
+    await deployments.fixture(['ENSToken', 'ens-contracts', 'ERC20MultiDelegate']);
     
     // Get deployed contracts
     token = await ethers.getContract('ENSToken');

@@ -18,22 +18,12 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
       // For non-test networks, get the universal resolver address from @ensdomains/ens-contracts
       const networkName = network.name === 'hardhat' ? 'mainnet' : network.name;
       
-      // First try to get from deployments directory
+      // Try to get from deployments directory
       try {
         const universalResolverDeployment = require(`@ensdomains/ens-contracts/deployments/${networkName}/UniversalResolver.json`);
         universalResolverAddress = universalResolverDeployment.address;
       } catch (deploymentError) {
-        console.log(`No UniversalResolver deployment found for network ${networkName}, trying addresses...`);
-        
-        // If deployment not found, try addresses directory
-        try {
-          const addresses = require('@ensdomains/ens-contracts/addresses/' + networkName + '.json');
-          if (addresses.UniversalResolver) {
-            universalResolverAddress = addresses.UniversalResolver;
-          }
-        } catch (addressesError) {
-          console.log(`No UniversalResolver address found for network ${networkName}`);
-        }
+        console.log(`No UniversalResolver deployment found for network ${networkName}`);
       }
     } catch (error) {
       console.log(`Error fetching UniversalResolver address: ${error.message}`);
@@ -52,4 +42,4 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
   });
 };
 module.exports.tags = ['ERC20MultiDelegate'];
-module.exports.dependencies = ['ENSToken', 'test-dependencies'];
+module.exports.dependencies = ['ENSToken', 'ens-contracts'];
