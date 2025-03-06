@@ -1041,4 +1041,19 @@ describe('ERC20MultiDelegate', function () {
       ).to.not.emit(multiDelegate, 'ProxyDeployed');
     });
   });
+
+  describe('setMetadataResolver', function () {
+    it('should revert if caller is not owner', async function () {
+      await expect(
+        multiDelegate
+          .connect(addr1)
+          .setMetadataResolver(addr1.address)
+      ).to.be.revertedWith('Ownable: caller is not the owner');
+    });
+
+    it('should set the metadata resolver', async function () {
+      await multiDelegate.setMetadataResolver(addr1.address);
+      expect(await multiDelegate.metadataResolver()).to.equal(addr1.address);
+    });
+  });
 });
