@@ -1,10 +1,10 @@
+// This file serves as a tag collector for test dependencies
+// It doesn't need to deploy anything itself since the actual deployments
+// are handled by the 01_deploy_ens_contracts.js script
+
 module.exports = async ({getNamedAccounts, deployments, network}) => {
-  // This script is now just a wrapper for the mock contracts deployment
-  // Only deploy test dependencies on test networks
-  if (!network.tags.test) {
-    return;
-  }
+  // This is just a tag collector, no deployment logic needed
 };
 
 module.exports.tags = ['test-dependencies'];
-module.exports.dependencies = ['mock-contracts'];
+module.exports.dependencies = ['ens-contracts'];

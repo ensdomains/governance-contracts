@@ -1,8 +1,10 @@
+const { ethers } = require('hardhat');
+
 module.exports = async ({getNamedAccounts, deployments, network}) => {
   const {deploy} = deployments;
   const {deployer} = await getNamedAccounts();
   
-  // Only deploy mock contracts on test networks
+  // Only deploy mock ENS contracts on test networks
   if (!network.tags.test) {
     return;
   }
@@ -15,8 +17,9 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
     log: true,
   });
   
+  const registry = await ethers.getContract('ENSRegistry');
+  
   // Deploy MockReverseRegistrar
-  const registry = await deployments.get('ENSRegistry');
   await deploy('ReverseRegistrar', {
     from: deployer,
     contract: 'MockReverseRegistrar',
@@ -41,5 +44,5 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
   });
 };
 
-module.exports.tags = ['mock-contracts'];
+module.exports.tags = ['ens-contracts'];
 module.exports.dependencies = [];
