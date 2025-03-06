@@ -2,13 +2,13 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "./IUniversalResolver.sol";
+import "@ensdomains/ens-contracts/contracts/resolvers/profiles/IExtendedResolver.sol";
 
 /**
  * A simplified mock of the UniversalResolver contract for testing purposes.
  * This mock implements only the methods needed for the ERC20MultiDelegate contract.
  */
-contract MockUniversalResolver is IUniversalResolver, ERC165 {
+contract MockUniversalResolver is IExtendedResolver, ERC165 {
     mapping(address => string) public names;
     mapping(string => string) public avatars;
     bool public shouldReturnEmptyName = false;
@@ -29,7 +29,7 @@ contract MockUniversalResolver is IUniversalResolver, ERC165 {
      * Mock implementation of reverse resolution
      * This method is called by ERC20MultiDelegate.tokenURI to resolve an address to a name
      */
-    function reverse(bytes calldata) external view override returns (
+    function reverse(bytes calldata) external view returns (
         string memory resolvedName,
         address resolvedAddress,
         address reverseResolver,
@@ -45,19 +45,19 @@ contract MockUniversalResolver is IUniversalResolver, ERC165 {
     }
     
     /**
-     * Mock implementation of resolve with metadata
+     * Implementation of the IExtendedResolver interface
      * This method is called by ERC20MultiDelegate.tokenURI to resolve a name to avatar data
      */
-    function resolve(bytes calldata, bytes calldata) external view override returns (
-        bytes memory result,
-        address resolverAddress
-    ) {
+    function resolve(
+        bytes memory name,
+        bytes memory data
+    ) external view override returns (bytes memory) {
         if (shouldReturnEmptyName) {
             // Return empty avatar for the "should handle unresolved names" test
-            return (abi.encode(""), address(0));
+            return abi.encode("");
         } else {
             // Return avatar URL for the "should return the correct token URI" test
-            return (abi.encode("https://example.com/avatar.png"), address(0));
+            return abi.encode("https://example.com/avatar.png");
         }
     }
     
@@ -66,7 +66,7 @@ contract MockUniversalResolver is IUniversalResolver, ERC165 {
      * This method is used to check if the contract supports specific interfaces
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IUniversalResolver).interfaceId || 
+        return interfaceId == type(IExtendedResolver).interfaceId || 
                interfaceId == 0x9061b923 || // IExtendedResolver
                super.supportsInterface(interfaceId);
     }
