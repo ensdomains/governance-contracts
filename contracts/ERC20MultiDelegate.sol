@@ -38,7 +38,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     using StringUtils for string;
 
     ERC20Votes public immutable token;
-    UniversalResolver public immutable metadataResolver;
+    UniversalResolver public metadataResolver;
 
     error InvalidDelegateAddress();
 
@@ -249,6 +249,10 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             )
         );
         return string.concat("data:application/json;base64,", json);
+    }
+
+    function setMetadataResolver(UniversalResolver _newResolver) external onlyOwner {
+        metadataResolver = _newResolver;
     }
 
     function _createProxyDelegatorAndTransfer(
