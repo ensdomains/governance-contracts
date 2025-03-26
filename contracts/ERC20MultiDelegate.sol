@@ -193,16 +193,9 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         // convert tokenId to a hex string representation of the address
         string memory hexAddress = address(uint160(tokenId)).addressToHex();
 
-        // construct the encoded reversed name
-        bytes memory encodedReversedName = bytes.concat(
-            "\x28",
-            bytes(hexAddress),
-            "\x04addr\x07reverse\x00"
-        );
-
         string memory resolvedName;
         // attempt to resolve the reversed name using the metadataResolver
-        try metadataResolver.reverse(encodedReversedName, 60) returns (
+        try metadataResolver.reverse(bytes(hexAddress), 60) returns (
             string memory _resolvedName,
             address,
             address
@@ -253,7 +246,9 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         return string.concat("data:application/json;base64,", json);
     }
 
-    function setMetadataResolver(IUniversalResolver _newResolver) external onlyOwner {
+    function setMetadataResolver(
+        IUniversalResolver _newResolver
+    ) external onlyOwner {
         metadataResolver = _newResolver;
     }
 
