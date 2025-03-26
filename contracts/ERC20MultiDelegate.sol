@@ -241,7 +241,9 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                     " Delegate Token",
                     '", "token_id": "',
                     Strings.toString(tokenId),
-                    '", "description": "This NFT is a proof for your ENS delegation strategy.", "image": "',
+                    '", "description": "This NFT represents an ENS token delegated to ',
+                    resolvedName.escape(),
+                    '", "image": "',
                     imageUri.escape(),
                     '"}'
                 )
