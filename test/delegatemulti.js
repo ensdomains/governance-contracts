@@ -745,6 +745,7 @@ describe('ENS Multi Delegate', () => {
         Buffer.from(metadataBase64.split('base64,')[1], 'base64').toString()
       );
       expect(metadataJSON.name).to.equal(`${delegateName} Delegate Token`);
+      expect(metadataJSON.description).to.equal(`This NFT represents an ENS token delegated to ${delegateName}`);
       expect(
         metadataJSON.token_id,
         // '642829559307850963015472508762062935916233390536'
@@ -939,6 +940,7 @@ describe('ERC20MultiDelegate', function () {
       const metadata = JSON.parse(decodedUri);
 
       expect(metadata.name).to.equal(`${resolvedName} Delegate Token`);
+      expect(metadata.description).to.equal(`This NFT represents an ENS token delegated to ${resolvedName}`);
       expect(metadata.token_id).to.equal(
         ethers.BigNumber.from(tokenId).toString()
       );
