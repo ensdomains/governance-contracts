@@ -7,7 +7,7 @@ import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Vo
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {UniversalResolver} from "@ensdomains/ens-contracts/contracts/utils/UniversalResolver.sol";
+import {IUniversalResolver} from "@ensdomains/ens-contracts/contracts/universalResolver/IUniversalResolver.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/contracts/utils/NameEncoder.sol";
 import {HexUtils} from "./utils/HexUtils.sol";
 import {StringUtils} from "./utils/StringUtils.sol";
@@ -38,7 +38,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     using StringUtils for string;
 
     ERC20Votes public immutable token;
-    UniversalResolver public metadataResolver;
+    IUniversalResolver public metadataResolver;
 
     error InvalidDelegateAddress();
 
@@ -60,7 +60,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      */
     constructor(
         ERC20Votes _token,
-        UniversalResolver _metadataResolver
+        IUniversalResolver _metadataResolver
     ) ERC1155("") {
         token = _token;
         metadataResolver = _metadataResolver;
@@ -201,9 +201,8 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
 
         string memory resolvedName;
         // attempt to resolve the reversed name using the metadataResolver
-        try metadataResolver.reverse(encodedReversedName) returns (
+        try metadataResolver.reverse(encodedReversedName, 60) returns (
             string memory _resolvedName,
-            address,
             address,
             address
         ) {
@@ -251,7 +250,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         return string.concat("data:application/json;base64,", json);
     }
 
-    function setMetadataResolver(UniversalResolver _newResolver) external onlyOwner {
+    function setMetadataResolver(IUniversalResolver _newResolver) external onlyOwner {
         metadataResolver = _newResolver;
     }
 

@@ -744,7 +744,7 @@ describe('ENS Multi Delegate', () => {
       const metadataJSON = JSON.parse(
         Buffer.from(metadataBase64.split('base64,')[1], 'base64').toString()
       );
-      expect(metadataJSON.name, `${delegateName} Delegate Token`);
+      expect(metadataJSON.name).to.equal(`${delegateName} Delegate Token`);
       expect(
         metadataJSON.token_id,
         // '642829559307850963015472508762062935916233390536'
