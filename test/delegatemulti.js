@@ -1030,7 +1030,9 @@ describe('ERC20MultiDelegate', function () {
         multiDelegate
           .connect(addr1)
           .setMetadataResolver(addr1.address)
-      ).to.be.revertedWith('Ownable: caller is not the owner');
+      ).to.be.revertedWith(
+        `custom error 'OwnableUnauthorizedAccount("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")'`
+      );
     });
 
     it('should set the metadata resolver', async function () {

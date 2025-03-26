@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
-import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Base64} from "@openzeppelin/contracts-v5/utils/Base64.sol";
+import {ERC1155} from "@openzeppelin/contracts-v5/token/ERC1155/ERC1155.sol";
+import {ERC20Votes} from "@openzeppelin/contracts-v5/token/ERC20/extensions/ERC20Votes.sol";
+import {Math} from "@openzeppelin/contracts-v5/utils/math/Math.sol";
+import {Ownable} from "@openzeppelin/contracts-v5/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts-v5/utils/Strings.sol";
 import {IUniversalResolver} from "@ensdomains/ens-contracts/contracts/universalResolver/IUniversalResolver.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/contracts/utils/NameEncoder.sol";
+
 import {HexUtils} from "./utils/HexUtils.sol";
 import {StringUtils} from "./utils/StringUtils.sol";
 
@@ -61,7 +62,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     constructor(
         ERC20Votes _token,
         IUniversalResolver _metadataResolver
-    ) ERC1155("") {
+    ) ERC1155("") Ownable(msg.sender) {
         token = _token;
         metadataResolver = _metadataResolver;
     }

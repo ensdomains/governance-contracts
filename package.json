@@ -12,6 +12,7 @@
   "dependencies": {
     "@ensdomains/ens-contracts": "^1.4.0",
     "@openzeppelin/contracts": "^4.9.3",
+    "@openzeppelin/contracts-v5": "npm:@openzeppelin/contracts@^5.0.0",
     "keccak256": "^1.0.3"
   },
   "devDependencies": {
