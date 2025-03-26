@@ -227,9 +227,10 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             resolvedName = string.concat("0x", hexAddress);
         }
 
-        string memory json = Base64.encode(
-            bytes(
-                string.concat(
+        string memory json;
+
+        if (bytes(imageUri).length > 0) {
+            json = string.concat(
                     '{"name": "',
                     resolvedName.escape(),
                     " Delegate Token",
@@ -240,10 +241,21 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                     '", "image": "',
                     imageUri.escape(),
                     '"}'
-                )
-            )
-        );
-        return string.concat("data:application/json;base64,", json);
+                );
+        } else {
+            json = string.concat(
+                    '{"name": "',
+                    resolvedName.escape(),
+                    " Delegate Token",
+                    '", "token_id": "',
+                    Strings.toString(tokenId),
+                    '", "description": "This NFT represents an ENS token delegated to ',
+                    resolvedName.escape(),
+                    '"}'
+                );
+        }
+
+        return string.concat("data:application/json;base64,", Base64.encode(bytes(json)));
     }
 
     function setMetadataResolver(
