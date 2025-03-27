@@ -739,6 +739,13 @@ describe('ENS Multi Delegate', () => {
           namehash.hash(delegateName),
           alice
         );
+      await resolver
+        .connect(aliceSigner)
+        .setText(
+          namehash.hash(delegateName),
+          "avatar",
+          "https://example.com/avatar.png"
+        );
       await reverseRegistrar.connect(aliceSigner).setName(delegateName);
       const metadataBase64 = await multiDelegate.tokenURI(alice);
       const metadataJSON = JSON.parse(
@@ -945,11 +952,8 @@ describe('ERC20MultiDelegate', function () {
     });
 
     it('should handle unresolved names', async function () {
-      const delegateAddress = addr1.address;
+      const delegateAddress = addr2.address;
       const tokenId = delegateAddress;
-      
-      // Set the resolver to return empty name for this test
-      await resolver.setShouldReturnEmptyName(true);
       
       const uri = await multiDelegate.tokenURI(tokenId);
 
