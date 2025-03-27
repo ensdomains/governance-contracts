@@ -708,17 +708,17 @@ describe('ENS Multi Delegate', () => {
   });
 
   describe('metadata uri', () => {
-    it('should retrieve onchain metadata for given tokenID if available', async () => {
-      const delegateLabel = 'test';
+    it("should retrieve onchain metadata for given tokenID if available", async () => {
+      const delegateLabel = "test";
       const delegateName = `${delegateLabel}.eth`;
 
       await registry.setSubnodeOwner(
         ROOT_NODE,
-        utils.keccak256(utils.toUtf8Bytes('eth')),
+        utils.keccak256(utils.toUtf8Bytes("eth")),
         deployer
       );
       await registry.setSubnodeOwner(
-        namehash.hash('eth'),
+        namehash.hash("eth"),
         utils.keccak256(utils.toUtf8Bytes(delegateLabel)),
         alice
       );
@@ -735,26 +735,24 @@ describe('ENS Multi Delegate', () => {
 
       await resolver
         .connect(aliceSigner)
-        .functions['setAddr(bytes32,address)'](
+        .functions["setAddr(bytes32,address)"](
           namehash.hash(delegateName),
           alice
         );
       await reverseRegistrar.connect(aliceSigner).setName(delegateName);
       const metadataBase64 = await multiDelegate.tokenURI(alice);
       const metadataJSON = JSON.parse(
-        Buffer.from(metadataBase64.split('base64,')[1], 'base64').toString()
+        Buffer.from(metadataBase64.split("base64,")[1], "base64").toString()
       );
-      expect(metadataJSON.name, `${delegateName} Delegate Token`);
+      expect(metadataJSON.name).to.equal(`${delegateName} Delegate Token`);
+      expect(metadataJSON.description).to.equal(
+        `This NFT represents an ENS token delegated to ${delegateName}`
+      );
       expect(
-        metadataJSON.token_id,
+        metadataJSON.token_id
         // '642829559307850963015472508762062935916233390536'
-        BigInt(alice).toString(10)
-      );
-      expect(
-        metadataJSON.description,
-        'This NFT is a proof for your ENS delegation strategy.'
-      );
-      expect(metadataJSON.image, '');
+      ).to.equal(BigInt(alice).toString(10));
+      expect(metadataJSON.image).to.equal("https://example.com/avatar.png");
     });
   });
 
@@ -939,6 +937,7 @@ describe('ERC20MultiDelegate', function () {
       const metadata = JSON.parse(decodedUri);
 
       expect(metadata.name).to.equal(`${resolvedName} Delegate Token`);
+      expect(metadata.description).to.equal(`This NFT represents an ENS token delegated to ${resolvedName}`);
       expect(metadata.token_id).to.equal(
         ethers.BigNumber.from(tokenId).toString()
       );
@@ -964,7 +963,7 @@ describe('ERC20MultiDelegate', function () {
       expect(metadata.token_id).to.equal(
         ethers.BigNumber.from(tokenId).toString()
       );
-      expect(metadata.image).to.equal('');
+      expect(metadata).not.to.have.property('image');
     });
   });
 
@@ -1028,7 +1027,9 @@ describe('ERC20MultiDelegate', function () {
         multiDelegate
           .connect(addr1)
           .setMetadataResolver(addr1.address)
-      ).to.be.revertedWith('Ownable: caller is not the owner');
+      ).to.be.revertedWith(
+        `custom error 'OwnableUnauthorizedAccount("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")'`
+      );
     });
 
     it('should set the metadata resolver', async function () {

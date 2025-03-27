@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@ensdomains/ens-contracts/contracts/resolvers/profiles/IExtendedResolver.sol";
+import "@ensdomains/ens-contracts/contracts/universalResolver/IUniversalResolver.sol";
 
 /**
  * A simplified mock of the UniversalResolver contract for testing purposes.
@@ -29,18 +30,17 @@ contract MockUniversalResolver is IExtendedResolver, ERC165 {
      * Mock implementation of reverse resolution
      * This method is called by ERC20MultiDelegate.tokenURI to resolve an address to a name
      */
-    function reverse(bytes calldata) external view returns (
+    function reverse(bytes calldata addressBytes, uint256 coinType) external view returns (
         string memory resolvedName,
         address resolvedAddress,
-        address reverseResolver,
-        address contractAddress
+        address reverseResolver
     ) {
         if (shouldReturnEmptyName) {
             // Return empty name for the "should handle unresolved names" test
-            return ("", address(0x70997970C51812dc3A010C7d01b50e0d17dc79C8), address(0), address(0));
+            return ("", address(bytes20(addressBytes)), address(0));
         } else {
             // Return "test.eth" for the "should return the correct token URI" test
-            return ("test.eth", address(0x70997970C51812dc3A010C7d01b50e0d17dc79C8), address(0), address(0));
+            return ("test.eth", address(bytes20(addressBytes)), address(0));
         }
     }
     

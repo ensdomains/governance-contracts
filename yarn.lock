@@ -43,10 +43,10 @@
   resolved "https://registry.yarnpkg.com/@ensdomains/buffer/-/buffer-0.1.1.tgz#6c275ba7e457e935405b67876f1f0d980c8baa63"
   integrity sha512-92SfSiNS8XorgU7OUBHo/i1ZU7JV7iz/6bKuLPNVsMxV79/eI7fJR6jfJJc40zAHjs3ha+Xo965Idomlq3rqnw==
 
-"@ensdomains/ens-contracts@1.2.5":
-  version "1.2.5"
-  resolved "https://registry.yarnpkg.com/@ensdomains/ens-contracts/-/ens-contracts-1.2.5.tgz#12e49b34ddf899de6123c3dadf0028134d37a6b8"
-  integrity sha512-bzoc/o5OAF1NP2PeCmKhexspT8hVkQZfvN1n2bLNDCPWhdNfyVU2peNqVwqFh/gah9L1GJabhPPU2gKRURgD5g==
+"@ensdomains/ens-contracts@^1.4.0":
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/@ensdomains/ens-contracts/-/ens-contracts-1.4.0.tgz#886acf9ad18fd3b9719ed5ac15c61e4199cf431c"
+  integrity sha512-h10r9igVCycW8vvkEcNageOtXLJss5k3cb5jQUeLFSppp4VE3aXhwI+UapsqxKwDxSit2XxzAD9Zbwbhj2q4Fw==
   dependencies:
     "@ensdomains/buffer" "^0.1.1"
     "@ensdomains/solsha1" "0.0.3"
@@ -1096,6 +1096,11 @@
   dependencies:
     "@types/sinon-chai" "^3.2.3"
     "@types/web3" "1.0.19"
+
+"@openzeppelin/contracts-v5@npm:@openzeppelin/contracts@^5.0.0":
+  version "5.2.0"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-5.2.0.tgz#bd020694218202b811b0ea3eec07277814c658da"
+  integrity sha512-bxjNie5z89W1Ea0NZLZluFh8PrFNn9DH8DQlujEok2yjsOlraUPKID5p1Wk3qdNbf6XkQ1Os2RvfiHrrXLHWKA==
 
 "@openzeppelin/contracts@^4.1.0":
   version "4.9.6"

@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
-import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {UniversalResolver} from "@ensdomains/ens-contracts/contracts/utils/UniversalResolver.sol";
+import {Base64} from "@openzeppelin/contracts-v5/utils/Base64.sol";
+import {ERC1155} from "@openzeppelin/contracts-v5/token/ERC1155/ERC1155.sol";
+import {ERC20Votes} from "@openzeppelin/contracts-v5/token/ERC20/extensions/ERC20Votes.sol";
+import {Math} from "@openzeppelin/contracts-v5/utils/math/Math.sol";
+import {Ownable} from "@openzeppelin/contracts-v5/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts-v5/utils/Strings.sol";
+import {IUniversalResolver} from "@ensdomains/ens-contracts/contracts/universalResolver/IUniversalResolver.sol";
 import {NameEncoder} from "@ensdomains/ens-contracts/contracts/utils/NameEncoder.sol";
+
 import {HexUtils} from "./utils/HexUtils.sol";
 import {StringUtils} from "./utils/StringUtils.sol";
 
@@ -38,7 +39,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
     using StringUtils for string;
 
     ERC20Votes public immutable token;
-    UniversalResolver public metadataResolver;
+    IUniversalResolver public metadataResolver;
 
     error InvalidDelegateAddress();
 
@@ -60,8 +61,8 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      */
     constructor(
         ERC20Votes _token,
-        UniversalResolver _metadataResolver
-    ) ERC1155("") {
+        IUniversalResolver _metadataResolver
+    ) ERC1155("") Ownable(msg.sender) {
         token = _token;
         metadataResolver = _metadataResolver;
     }
@@ -192,18 +193,10 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
         // convert tokenId to a hex string representation of the address
         string memory hexAddress = address(uint160(tokenId)).addressToHex();
 
-        // construct the encoded reversed name
-        bytes memory encodedReversedName = bytes.concat(
-            "\x28",
-            bytes(hexAddress),
-            "\x04addr\x07reverse\x00"
-        );
-
         string memory resolvedName;
         // attempt to resolve the reversed name using the metadataResolver
-        try metadataResolver.reverse(encodedReversedName) returns (
+        try metadataResolver.reverse(bytes(hexAddress), 60) returns (
             string memory _resolvedName,
-            address,
             address,
             address
         ) {
@@ -234,24 +227,40 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
             resolvedName = string.concat("0x", hexAddress);
         }
 
-        string memory json = Base64.encode(
-            bytes(
-                string.concat(
+        string memory json;
+
+        if (bytes(imageUri).length > 0) {
+            json = string.concat(
                     '{"name": "',
                     resolvedName.escape(),
                     " Delegate Token",
                     '", "token_id": "',
                     Strings.toString(tokenId),
-                    '", "description": "This NFT is a proof for your ENS delegation strategy.", "image": "',
+                    '", "description": "This NFT represents an ENS token delegated to ',
+                    resolvedName.escape(),
+                    '", "image": "',
                     imageUri.escape(),
                     '"}'
-                )
-            )
-        );
-        return string.concat("data:application/json;base64,", json);
+                );
+        } else {
+            json = string.concat(
+                    '{"name": "',
+                    resolvedName.escape(),
+                    " Delegate Token",
+                    '", "token_id": "',
+                    Strings.toString(tokenId),
+                    '", "description": "This NFT represents an ENS token delegated to ',
+                    resolvedName.escape(),
+                    '"}'
+                );
+        }
+
+        return string.concat("data:application/json;base64,", Base64.encode(bytes(json)));
     }
 
-    function setMetadataResolver(UniversalResolver _newResolver) external onlyOwner {
+    function setMetadataResolver(
+        IUniversalResolver _newResolver
+    ) external onlyOwner {
         metadataResolver = _newResolver;
     }
 
