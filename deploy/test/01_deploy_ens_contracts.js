@@ -38,10 +38,11 @@ module.exports = async ({getNamedAccounts, deployments, network}) => {
   });
   
   // Deploy UniversalResolver (still using mock for tests)
+  // Deploy UniversalResolver (using the real contract)
   await deploy('UniversalResolver', {
     from: deployer,
-    contract: 'contracts/test/MockUniversalResolver.sol:MockUniversalResolver',
-    args: [],
+    contract: 'UniversalResolver',
+    args: [registry.address, []],
     log: true,
   });
 };

@@ -190,16 +190,12 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
      * @return Onchain metadata in base64 format "data:application/json;base64,<encoded-json>".
      */
     function tokenURI(uint256 tokenId) public view returns (string memory) {
-        // convert tokenId to a hex string representation of the address
-        string memory hexAddress = address(uint160(tokenId)).addressToHex();
-
+        address targetAddress = address(uint160(tokenId));
         string memory resolvedName;
         // attempt to resolve the reversed name using the metadataResolver
-        try metadataResolver.reverse(bytes(hexAddress), 60) returns (
-            string memory _resolvedName,
-            address,
-            address
-        ) {
+        try
+            metadataResolver.reverse(abi.encodePacked(targetAddress), 60)
+        returns (string memory _resolvedName, address, address) {
             resolvedName = _resolvedName;
         } catch {}
 
@@ -224,7 +220,7 @@ contract ERC20MultiDelegate is ERC1155, Ownable {
                     : abi.decode(_imageUri, (string));
             } catch {}
         } else {
-            resolvedName = string.concat("0x", hexAddress);
+            resolvedName = string.concat("0x", targetAddress.addressToHex());
         }
 
         string memory json;
